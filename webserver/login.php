@@ -1,69 +1,35 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <script>
-        function HandleLoginResponse(response)
-        {
-            var text = JSON.parse(response);
-            document.getElementById("textResponse").textContent = "Response: " + text;
-        }
+<?php
 
-        function SendLoginRequest(username, password)
-        {
-            var request = new XMLHttpRequest();
+//Includes the required files
+require_once('path.inc');
+require_once('get_host_info.inc');
+require_once('rabbitMQLib.inc');
 
-            request.open("POST", "login.php", true);
-            request.setRequestHeader(
-                "Content-Type",
-                "application/x-www-form-urlencoded"
-            );
+//Reads Raw JSON string from HTTP POST request body and decodes the json string into an array
+$input = file_get_contents('php://input');
+$request = json_decode($input, true);
 
-            request.onreadystatechange = function ()
-            {
-                if (this.readyState == 4)
-                {
-                    if (this.status == 200)
-                    {
-                        HandleLoginResponse(this.responseText);
-                    }
-                    else
-                    {
-                        document.getElementById("textResponse").textContent =
-                            "Could not contact the login server.";
-                    }
-                }
-            };
+$client = new rabbitMQClient("testRabbitMQ.ini", "testServer");
+	
+$response = $client->send_request($request);
 
-		request.send(
-			"type=login&uname=" + encodeURIComponent(username) +
-			"&pword=" + encodeURIComponent(password)
-		);
-        }
-    </script>
-    
-    <link rel="stylesheet" href="styles.css">
-    <title>Login</title>
-</head>
+echo json_encode($response);
 
-<body>
+if (!isset($_POST))
+{
+	$msg = "NO POST MESSAGE SET, POLITELY FUCK OFF";
+	echo json_encode($msg);
+	exit(0);
+}
+$request = $_POST;
+$response = "unsupported request type, politely FUCK OFF";
+switch ($request["type"])
+{
+	case "login":
+		$response = "login, yeah we can do that";
+	break;
+}
+echo json_encode($response);
+exit(0);
 
-<div class="login-box">
-
-    <h2>Login</h2>
-
-    <form method="POST" action="login.php">
-
-        <label>Username</label>
-        <input type="text" name="uname" required>
-
-        <label>Password</label>
-        <input type="password" name="pword" required>
-
-        <button type="submit">Login</button>
-        <button type="submit">Register</button>
-    </form>
-
-</div>
-
-</body>
-</html>
+?>
