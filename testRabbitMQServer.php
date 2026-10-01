@@ -12,7 +12,8 @@ function doLogin($username,$password)
     //return false if not valid
 }
 
-doRegister($first, $last, $email, $username, $password){
+doRegister($first, $last, $email, $username, $password)
+{
 	$db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
 	if($db->connect_error){
 		return ["message" => "Database connection failed"];
