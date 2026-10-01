@@ -12,6 +12,28 @@ function doLogin($username,$password)
     //return false if not valid
 }
 
+doRegister($first, $last, $email, $username, $password){
+	$db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
+	if($db->connect_error){
+		return ["message" => "Database connection failed"];
+	}
+
+	$hash = hash('sha256', $password);
+
+	$stmt = $db->prepare("INSERT INTO users (first_name, last_name, email, user, password, dateCreated) VALUES (?, ?, ?, ?, ?, NOW())");
+	$stmt->bind_param("sssss", $first, $last, $email, $username, $hash);
+
+	if ($stmt->execute()){
+		$stmt->close();
+		$db->close();
+		return["message" => "Regestration completed!"];
+	}
+
+		$stmt->close();
+		$db->close();
+		return ["message" => "Username or email already exists."]
+}
+
 function requestProcessor($request)
 {
   echo "received request".PHP_EOL;
@@ -25,7 +47,15 @@ function requestProcessor($request)
     case "login":
       return doLogin($request['username'],$request['password']);
     case "validate_session":
-      return doValidate($request['sessionId']);
+	    return doValidate($request['sessionId']);
+    case "register"
+	return doRegister(
+		$request['first_name'],
+		$request['last_name'],
+		$request['email'],
+		$request['uname'],
+		$request['password']
+	);
   }
   return array("returnCode" => '0', 'message'=>"Server received request and processed");
 }
