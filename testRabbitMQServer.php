@@ -32,7 +32,7 @@ function doRegister($first, $last, $email, $username, $password)
 
 		$stmt->close();
 		$db->close();
-		return ["message" => "Username or email already exists."]
+		return ["message" => "Username or email already exists."];
 }
 
 function requestProcessor($request)
@@ -49,7 +49,7 @@ function requestProcessor($request)
       return doLogin($request['username'],$request['password']);
     case "validate_session":
 	    return doValidate($request['sessionId']);
-    case "register"
+    case "register":
 	return doRegister(
 		$request['first_name'],
 		$request['last_name'],
