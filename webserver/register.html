@@ -4,7 +4,8 @@
 	<title>Register</title>
 	<script>
 		//function for when registration is submitted
-		function sendRegister(event){
+		function sendRegister(event)
+		{
 			event.preventDefault();
 
 			//create registration payload
@@ -32,7 +33,7 @@
 
 			//data to json string and send post req
 			request.send(JSON.stringify(data));
-
+		};
 		</script>
 	</head>
 
