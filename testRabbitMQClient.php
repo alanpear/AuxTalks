@@ -15,10 +15,16 @@ else
 }
 
 $request = array();
-$request['type'] = "Login";
-$request['username'] = "steve";
-$request['password'] = "password";
-$request['message'] = $msg;
+//$request['type'] = "Login";
+//$request['username'] = "steve";
+//$request['password'] = "password";
+$request['type'] = "register";
+$request['first_name'] = "john";
+$request['last_name'] = "doe";
+$request['email'] = "johnd@example.com";
+$request['uname'] = "testuser100";
+$request['password'] = "secretPassword";
+//$request['message'] = $msg;
 $response = $client->send_request($request);
 //$response = $client->publish($request);
 
@@ -27,4 +33,4 @@ print_r($response);
 echo "\n\n";
 
 echo $argv[0]." END".PHP_EOL;
-
+?>
