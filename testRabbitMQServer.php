@@ -22,17 +22,23 @@ function doRegister($first, $last, $email, $username, $password)
 	$hash = hash('sha256', $password);
 
 	$stmt = $db->prepare("INSERT INTO users (first_name, last_name, email, user, password, dateCreated) VALUES (?, ?, ?, ?, ?, NOW())");
+	if(!stmt){
+		$err=$db->error;
+		$db->close();
+		return ["message" => "Database prepare failed: " . $err];
+	}
 	$stmt->bind_param("sssss", $first, $last, $email, $username, $hash);
 
 	if ($stmt->execute()){
 		$stmt->close();
 		$db->close();
-		return["message" => "Regestration completed!"];
+		return["message" => "Registration completed!"];
 	}
 
 		$stmt->close();
 		$db->close();
 		return ["message" => "Username or email already exists."];
+
 }
 
 function requestProcessor($request)
@@ -46,9 +52,10 @@ function requestProcessor($request)
   switch ($request['type'])
   {
     case "login":
-      return doLogin($request['username'],$request['password']);
+      return doLogin($request['uname'],$request['password']);
     case "validate_session":
-	    return doValidate($request['sessionId']);
+	    return ["message" => "session validation not implemented yet"];
+	    //return doValidate($request['sessionId']);
     case "register":
 	return doRegister(
 		$request['first_name'],
