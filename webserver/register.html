@@ -17,6 +17,9 @@
 				uname: document.getElementById("uname").value,
 				password: document.getElementById("password").value
 			};
+			
+			console.log("[log 1] sending data", data);
+
 
 			//create an xml request, do a post request, and set payload to json
 			var request = new XMLHttpRequest();
@@ -25,8 +28,11 @@
 
 			//
 			request.onreadystatechange = function(){
+				console.log("[log 2] readyState:", request.readyState, "status: ", request.status);
 				if (request.readyState === 4 && request.status === 200){
+					console.log("[log 3] raw response text from login.php:\n", request.responseText);
 					var res = JSON.parse(request.responseText);
+					console.log("[LOG 4]- parsed json response:", res);
 					document.getElementById("response").innerHTML = res.message;
 				}
 			};
