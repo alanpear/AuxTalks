@@ -1,6 +1,6 @@
 <html>
 <head>
-	<title>Register</title>
+	<title>Login</title>
 	<script>
 		//function for when registration is submitted
 		function sendRegister(event) {
@@ -36,20 +36,11 @@
 </head>
 
 <body>
-	<h2>Register</h2>
+	<h2>Login</h2>
 
 	<form onsubmit="sendRegister(event)">
-		<label>First Name</label>
-		<input type="text" id="first_name" required><br><br>
-
-		<label>Last Name</label>
-		<input type="text" id="last_name" required><br><br>
-
-		<label>Email</label>
+		<label>Email or Username</label>
 		<input type="text" id="email" required><br><br>
-
-		<label>Username</label>
-		<input type="text" id="uname" required><br><br>
 
 		<label>Password</label>
 		<input type="password" id="password"><br><br>
