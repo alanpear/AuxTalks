@@ -22,7 +22,7 @@ function doRegister($first, $last, $email, $username, $password)
 	$hash = hash('sha256', $password);
 
 	$stmt = $db->prepare("INSERT INTO users (first_name, last_name, email, user, password, dateCreated) VALUES (?, ?, ?, ?, ?, NOW())");
-	if(!stmt){
+	if(!$stmt){
 		$err=$db->error;
 		$db->close();
 		return ["message" => "Database prepare failed: " . $err];

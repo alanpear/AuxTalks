@@ -25,7 +25,7 @@
 			request.onreadystatechange = function () {
 				if (request.readyState === 4 && request.status === 200) {
 					var res = JSON.parse(request.responseText);
-					document.getElementId("response").innerHTML = res.message;
+					document.getElementById("response").innerHTML = res.message;
 				}
 			};
 
