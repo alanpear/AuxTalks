@@ -104,16 +104,6 @@ if (!$request || !isset($request['type'])) {
 	exit();
 }
 
-
-if ($request ['type'] === 'login' && isset($response['status']) && $response['status'] === 'success'){
-	if(isset($response['sessionKey'])){
-		$_SESSION['sessionKey'] = $response['sessionKey'];
-	}
-	if(isset($response['user'])){
-		$_session['user'] = $response['user'];
-	}
-}
-
 if ($request['type'] === 'validate_session') {
 	if (!isset($_SESSION['sessionKey'])){
 		echo json_encode(["status" => "error", "message" => "no active session found"]);
@@ -126,6 +116,15 @@ if ($request['type'] === 'validate_session') {
 $client = new rabbitMQClient("testRabbitMQ.ini", "testServer");	
 $response = $client->send_request($request);
 
+if ($request ['type'] === 'login' && isset($response['status']) && $response['status'] === 'success'){
+	if(isset($response['sessionKey'])){
+		$_SESSION['sessionKey'] = $response['sessionKey'];
+	}
+	if(isset($response['user'])){
+		$_SESSION['user'] = $response['user'];
+	}
+}
+	
 echo json_encode($response);
 
 //non used code
