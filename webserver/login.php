@@ -1,4 +1,5 @@
 <?php
+session_start();
 
 //Includes the required files
 require_once('path.inc');
@@ -17,6 +18,15 @@ if (!$request || !isset($request['type'])) {
 	error_log("[WEB VM ERROR] JSON decoding failed or missing 'type'");
 	echo json_encode(["message" => "Web VM: Invalid JSON or missing type"]);
 	exit();
+}
+
+if ($request['type'] === 'validate_session') {
+	if (!isset($_SESSION['sessionKey'])){
+		echo json_encode(["status" => "error", "message" => "no active session found"]);
+		exit();
+	}
+	request['sessionKey'] = $_SESSION['sessionKey'];
+
 }
 
 $client = new rabbitMQClient("testRabbitMQ.ini", "testServer");	
