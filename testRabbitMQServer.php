@@ -41,7 +41,7 @@ function doRegister($first, $last, $email, $username, $password)
 
 }
 
-function validateSession($seesionKey)
+function validateSession($sessionKey)
 {
 	$db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
 	if($db->connect_error){
@@ -49,8 +49,8 @@ function validateSession($seesionKey)
 	}
 
 	//verify key exists and is not expired
-	$stmt = $db->prepare("SELECT user FROM sesions WHERE session_key = ? AND expires at > NOW()");
-	$stmt->bind_param("s", $sessionKey);
+	$stmt = $db->prepare("SELECT user FROM sessions WHERE session_key = ? AND expires at > NOW()");
+	$stmt->bind_param("s", $sessionKey);``
 	$stmt->execute();
 	$result = $stmt->get_result();
 

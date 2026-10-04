@@ -6,7 +6,7 @@ require_once('path.inc');
 require_once('get_host_info.inc');
 require_once('rabbitMQLib.inc');
 
-error_log("[WEB VM] login.php called");
+error_log("[WEB VM] login.phpcalled");
 
 //Reads Raw JSON string from HTTP POST request body and decodes the json string into an array
 $input = file_get_contents('php://input');
@@ -18,6 +18,16 @@ if (!$request || !isset($request['type'])) {
 	error_log("[WEB VM ERROR] JSON decoding failed or missing 'type'");
 	echo json_encode(["message" => "Web VM: Invalid JSON or missing type"]);
 	exit();
+}
+
+
+if ($request ['type'] === 'login' && isset($response['status']) && $response['status'] === 'success'){
+	if(isset($response['sessionKey'])){
+		$_SESSION['sessionKey'] = $response['sessionKey'];
+	}
+	if(isset($response['user'])){
+		$_session['user'] = $response['user'];
+	}
 }
 
 if ($request['type'] === 'validate_session') {
@@ -34,6 +44,8 @@ $response = $client->send_request($request);
 
 echo json_encode($response);
 
+//non used code
+/*
 if (!isset($_POST))
 {
 	$msg = "NO POST MESSAGE SET, POLITELY FUCK OFF";
@@ -49,6 +61,8 @@ switch ($request["type"])
 	break;
 }
 echo json_encode($response);
+ */
+
 exit(0);
 
 ?>
