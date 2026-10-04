@@ -12,7 +12,7 @@ function doLogin($username,$password)
 		return ["status" => "error", "message" => "database connection failed"];
 	}
 
-	$inputHash = hash('sha256', $passsword);
+	$inputHash = hash('sha256', $password);
 
 	$stmt = $db->prepare("SELECT password FROM users WHERE user = ?");
 	if(!stmt){
