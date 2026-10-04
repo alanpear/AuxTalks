@@ -41,6 +41,34 @@ function doRegister($first, $last, $email, $username, $password)
 
 }
 
+function validateSession($seesionKey)
+{
+	$db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
+	if($db->connect_error){
+		return ["status" => "error", "message" => "database connection failed"]
+	}
+
+	//verify key exists and is not expired
+	$stmt = $db->prepare("SELECT user FROM sesions WHERE session_key = ? AND expires at > NOW()");
+	$stmt->bind_param("s", $sessionKey);
+	$stmt->execute();
+	$result = $stmt->get_result();
+
+	if($row = $result->fetch_assoc()) {
+		$username = $row['user'];
+		$stmt->close();
+		$db->close();
+		return[
+			"status" => "success",
+			"message" => "Session Valid",
+			"user" => $username
+		];
+	}
+	$stmt->close();
+	$db->close();
+	return["status" => "error", "message" => "session expired or doesnt exist"];
+}
+
 function requestProcessor($request)
 {
   echo "received request".PHP_EOL;
