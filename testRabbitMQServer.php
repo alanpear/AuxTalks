@@ -63,7 +63,7 @@ function validateSession($seesionKey)
 			"message" => "Session Valid",
 			"user" => $username
 		];
-	}
+
 	$stmt->close();
 	$db->close();
 	return["status" => "error", "message" => "session expired or doesnt exist"];
