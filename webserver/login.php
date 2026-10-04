@@ -5,12 +5,21 @@ require_once('path.inc');
 require_once('get_host_info.inc');
 require_once('rabbitMQLib.inc');
 
+error_log("[WEB VM] login.php called");
+
 //Reads Raw JSON string from HTTP POST request body and decodes the json string into an array
 $input = file_get_contents('php://input');
+error_log("[WEB VM] Raw php://input received: " . $input);
+
 $request = json_decode($input, true);
 
-$client = new rabbitMQClient("testRabbitMQ.ini", "testServer");
-	
+if (!$request || !isset($request['type'])) {
+	error_log("[WEB VM ERROR] JSON decoding failed or missing 'type'");
+	echo json_encode(["message" => "Web VM: Invalid JSON or missing type"]);
+	exit();
+}
+
+$client = new rabbitMQClient("testRabbitMQ.ini", "testServer");	
 $response = $client->send_request($request);
 
 echo json_encode($response);
