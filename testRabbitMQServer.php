@@ -15,7 +15,7 @@ function doLogin($username,$password)
 	$inputHash = hash('sha256', $password);
 
 	$stmt = $db->prepare("SELECT password FROM users WHERE user = ?");
-	if(!stmt){
+	if(!$stmt){
 		$db->close();
 		return ["status" => "error", "message" => "database prepare failed: " . $db->error];
 	}
@@ -89,11 +89,11 @@ function validateSession($sessionKey)
 {
 	$db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
 	if($db->connect_error){
-		return ["status" => "error", "message" => "database connection failed"]
+		return ["status" => "error", "message" => "database connection failed"];
 	}
 
 	//verify key exists and is not expired
-	$stmt = $db->prepare("SELECT user FROM sessions WHERE session_key = ? AND expires at > NOW()");
+	$stmt = $db->prepare("SELECT user FROM sessions WHERE session_key = ? AND expires_at > NOW()");
 	$stmt->bind_param("s", $sessionKey);
 	$stmt->execute();
 	$result = $stmt->get_result();
@@ -107,6 +107,7 @@ function validateSession($sessionKey)
 			"message" => "Session Valid",
 			"user" => $username
 		];
+	}
 
 	$stmt->close();
 	$db->close();
