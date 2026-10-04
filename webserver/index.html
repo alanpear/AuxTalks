@@ -1,6 +1,8 @@
 <html>
+
 <head>
-	<title>Login</title>
+	<link rel="stylesheet" href="styles.css">
+	<title>Register</title>
 	<script>
 		//function for when registration is submitted
 		function sendRegister(event) {
@@ -25,7 +27,7 @@
 			request.onreadystatechange = function () {
 				if (request.readyState === 4 && request.status === 200) {
 					var res = JSON.parse(request.responseText);
-					document.getElementById("response").innerHTML = res.message;
+					document.getElementId("response").innerHTML = res.message;
 				}
 			};
 
@@ -36,11 +38,20 @@
 </head>
 
 <body>
-	<h2>Login</h2>
+	<h2>Register</h2>
 
 	<form onsubmit="sendRegister(event)">
-		<label>Email or Username</label>
+		<label>First Name</label>
+		<input type="text" id="first_name" required><br><br>
+
+		<label>Last Name</label>
+		<input type="text" id="last_name" required><br><br>
+
+		<label>Email</label>
 		<input type="text" id="email" required><br><br>
+
+		<label>Username</label>
+		<input type="text" id="uname" required><br><br>
 
 		<label>Password</label>
 		<input type="password" id="password"><br><br>
