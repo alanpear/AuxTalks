@@ -1,5 +1,29 @@
 <!DOCTYPE html>
 <html>
+<title>AuxTalks Home</title>
+<script>
+		function checkSession() {
+			var request = new XMLHttpRequest();
+			request.open("POST", "login.php", true);
+			request.setRequestHeader("Content-Type", "application/json");
+
+			request.onreadystatechange = function () {
+				if (request.readyState === 4 && request.status === 200){
+					var res = JSON.parse(request.responseText);
+
+					if (res.status === "success") {
+						document.getElementById("welcome").innerHTML = "welcome back, " + res.user;
+					} else {
+						window.location.href = "login.html";
+					}
+				}
+			};
+			
+			request.send(JSON.stringify({type: "validate_session"}));
+		}
+
+		window.onload = checkSession;
+</script>
     <head>
         <link rel="stylesheet" href="styles.css">
         <button onclick="logout()">Logout</button>
