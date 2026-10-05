@@ -1,51 +1,74 @@
 <html>
-
 <head>
     <link rel="stylesheet" href="styles.css">
-    <button onclick="window.location.href='index.html'">Register</button>
     <title>Login</title>
     <script>
-        //function for when registration is submitted
-        function sendRegister(event) {
-            event.preventDefault();
+        /*
+        function HandleLoginResponse(response) {
+            var text = JSON.parse(response);
+            //	document.getElementById("textResponse").innerHTML = response+"<p>";	
+            document.getElementById("textResponse").innerHTML = "response: " + text + "<p>";
+        }
 
-            //create registration payload
-            var data = {
-                type: "register",
-                first_name: document.getElementById("first_name").value,
-                last_name: document.getElementById("last_name").value,
-                email: document.getElementById("email").value,
-                uname: document.getElementById("uname").value,
-                password: document.getElementById("password").value
-            };
-
-            //create an xml request, do a post request, and set payload to json
+        function SendLoginRequest(username, password) {
             var request = new XMLHttpRequest();
             request.open("POST", "login.php", true);
-            request.setRequestHeader("Content-Type", "application/json");
-
-            //
+            request.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
             request.onreadystatechange = function () {
-                if (request.readyState === 4 && request.status === 200) {
-                    var res = JSON.parse(request.responseText);
+
+                if ((this.readyState == 4) && (this.status == 200)) {
+                    HandleLoginResponse(this.responseText);
                     if (res.message === "Registration completed!") {
                         window.location.href = "home.html" // redirect to homepage
                     } else {
                         document.getElementId("response").innerHTML = res.message;
                     }
                 }
+            }
+            request.send("type=login&uname=" + username + "&pword=" + password);
+        }
+        */
+       function sendLogin(event) {
+            event.preventDefault();
+
+            var data = {
+                type: "login",
+                uname: document.getElementById("uname").value,
+                password: document.getElementById("password").value
             };
 
-            //data to json string and send post req
+            var request = new XMLHttpRequest();
+            request.open("POST", "login.php", true);
+            request.setRequestHeader("Content-Type", "application/json");
+
+            request.onreadystatechange = function () {
+                if (request.readyState === 4 && request.status === 200) {
+                    try {
+                        var res = JSON.parse(request.responseText);
+
+                        if (res.status === "success") {
+                            // Redirect to home page on successful login
+                            window.location.href = "home.html";
+                        } else {
+                            // Display the error message from the database
+                            document.getElementById("response").innerHTML = res.message || "Login failed";
+                        }
+                    } catch (e) {
+                        document.getElementById("response").innerHTML = request.responseText;
+                    }
+                }
+            };
+
             request.send(JSON.stringify(data));
-        };
+        }
     </script>
 </head>
 
 <body>
+    
     <h2>Login</h2>
 
-    <form onsubmit="SendLoginRequest(event)">
+    <form onsubmit="sendLogin(event)">
         <label>Username</label>
         <input type="text" id="uname" required><br><br>
 
@@ -56,34 +79,9 @@
 
     </form>
     <p id="response"></p>
+    <p>Need to register? <a href="index.html">Click here</a></p>
 </body>
 
-<script>
-
-    function HandleLoginResponse(response) {
-        var text = JSON.parse(response);
-        //	document.getElementById("textResponse").innerHTML = response+"<p>";	
-        document.getElementById("textResponse").innerHTML = "response: " + text + "<p>";
-    }
-
-    function SendLoginRequest(username, password) {
-        var request = new XMLHttpRequest();
-        request.open("POST", "login.php", true);
-        request.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-        request.onreadystatechange = function () {
-
-            if ((this.readyState == 4) && (this.status == 200)) {
-                HandleLoginResponse(this.responseText);
-                if (res.message === "Registration completed!") {
-                    window.location.href = "home.html" // redirect to homepage
-                } else {
-                    document.getElementId("response").innerHTML = res.message;
-                }
-            }
-        }
-        request.send("type=login&uname=" + username + "&pword=" + password);
-    }
-</script>
 
 
 
