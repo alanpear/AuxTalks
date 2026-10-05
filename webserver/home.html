@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html>
+<head>
 <title>AuxTalks Home</title>
+<link rel="stylesheet" href="styles.css">
 <script>
 		function checkSession() {
 			var request = new XMLHttpRequest();
@@ -21,17 +23,15 @@
 			
 			request.send(JSON.stringify({type: "validate_session"}));
 		}
-
+		function logout() {
+			//redirect to index or a logout script
+			window.location.href = "index.html";
+		}
 		window.onload = checkSession;
 </script>
-    <head>
-        <link rel="stylesheet" href="styles.css">
-        <button onclick="logout()">Logout</button>
-        <title>AuxTalks Home</title>
-    </head>
-    <script>
-        function logout() {
-            window.location.href = "index.html"
-        }
-    </script>
+</head>
+<body>
+	<button onclick="logout()">Logout</button>
+	<h2 id="welcome">Loading session...</h2>
+</body>
 </html>
