@@ -51,10 +51,10 @@
                             window.location.href = "home.html";
                         } else {
                             // Display the error message from the database
-                            document.getElementById("response").innerHTML = res.message || "Login failed";
+                            alert(res.message || "Login failed. Please try again.");
                         }
                     } catch (e) {
-                        document.getElementById("response").innerHTML = request.responseText;
+                        alert("An error occurred while processing the login request.");
                     }
                 }
             };
@@ -76,9 +76,8 @@
         <input type="password" id="password"><br><br>
 
         <button type="submit">Submit</button>
-
     </form>
-    <p id="response"></p>
+
     <p>Need to register? <a href="index.html">Click here</a></p>
 </body>
 
