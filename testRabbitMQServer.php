@@ -85,8 +85,25 @@ function doRegister($first, $last, $email, $username, $password)
 
 }
 
-function validateSession($sessionKey)
-{
+function doLogout($sesionKey){
+	if(empty($sessionKey)){
+		return["status"=>"error", "message"=>"no session key provided"];
+	}
+
+	$db = new mysqli('localhosy','admin', 'AuxTalks', 'AuxTalks');
+	if($db->connect_error){
+		return["status"=>"error", "message"=>"database connection failed"];
+	}
+
+	$stmt=$db->prepare("DELETE FROM sessions WHERE session_key = ?");
+	$stmt->bind_param("s", $sessionKey);
+	$stmt->close();
+	$db->close();
+
+	return["status"=>"success", "message"=>"session deleted from database"];
+}
+
+function validateSession($sessionKey){
 	$db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
 	if($db->connect_error){
 		return ["status" => "error", "message" => "database connection failed"];
@@ -129,6 +146,8 @@ function requestProcessor($request)
     case "validate_session":
 	    //return ["message" => "session validation not implemented yet"];
 	    return validateSession($request['sessionKey']);
+    case "logout":
+	    return doLogout($request['sessionKey'] ?? '');
     case "register":
 	return doRegister(
 		$request['first_name'],
