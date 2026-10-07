@@ -85,18 +85,19 @@ function doRegister($first, $last, $email, $username, $password)
 
 }
 
-function doLogout($sesionKey){
+function doLogout($sessionKey){
 	if(empty($sessionKey)){
 		return["status"=>"error", "message"=>"no session key provided"];
 	}
 
-	$db = new mysqli('localhosy','admin', 'AuxTalks', 'AuxTalks');
+	$db = new mysqli('localhost','admin', 'AuxTalks', 'AuxTalks');
 	if($db->connect_error){
 		return["status"=>"error", "message"=>"database connection failed"];
 	}
 
 	$stmt=$db->prepare("DELETE FROM sessions WHERE session_key = ?");
 	$stmt->bind_param("s", $sessionKey);
+	$stmt->execute();
 	$stmt->close();
 	$db->close();
 
