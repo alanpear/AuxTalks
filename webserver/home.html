@@ -6,6 +6,7 @@
 <script>
 	function logout()
 	{
+		console.log("function successfully called");
 		var request = new XMLHttpRequest();
 		request.open("POST", "login.php", true);
 		request.setRequestHeader("Content-Type", "application/json");
@@ -40,10 +41,7 @@
 			
 			request.send(JSON.stringify({type: "validate_session"}));
 		}
-		function logout() {
-			//redirect to index or a logout script
-			window.location.href = "index.html";
-		}
+
 		window.onload = checkSession;
 </script>
 </head>
