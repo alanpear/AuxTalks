@@ -2,7 +2,6 @@
 
 <head>
 	<link rel="stylesheet" href="styles.css">
-	<button onclick="window.location.href='login.html'">Login</button>
 	<title>Register</title>
 	<script>
 		//function for when registration is submitted
@@ -30,7 +29,7 @@
 					var res = JSON.parse(request.responseText);
 					if (res.message === "Registration completed!") {
 						document.getElementById("response").innerHTML = "Registration completed successfully!";
-						window.location.href = "home.html" // redirect to homepage
+						window.location.href = "login.html" // redirect to homepage
 					} else {
 						document.getElementId("response").innerHTML = res.message;
 					}
@@ -66,6 +65,7 @@
 
 	</form>
 	<p id="response"></p>
+	<p>Already have an account? <a href="login.html">Login here</a></p>
 </body>
 
 <script>
