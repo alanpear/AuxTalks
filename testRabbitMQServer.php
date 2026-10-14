@@ -62,6 +62,29 @@ function doRegister($first, $last, $email, $username, $password)
 	if($db->connect_error){
 		return ["message" => "Database connection failed"];
 	}
+	
+	$checkStmt = $db->prepare("SELECT user, email FROM users WHERE user = ? OR email = ?");
+	if(!$checkStmt){
+		$db->close();
+		return["status"=>"error", "message" => "database prepare failed:" . $db->error];
+	}
+	
+	$checkStmt->bind_param("ss", $username, $email);
+	$checkStmt->execute();
+	$checkResult = $checkStmt->get_result();
+	
+	if($existing = $checkResult->fetch_assoc()){
+		$checkStmt->close();
+		$db->close();
+
+		if ($existing['user'] === $username){
+			return["status"=>"error", "message"=>"username already exists."];
+		}else{
+			return["status"=>"error", "message"=>"email already registered"];
+		}
+	}
+	
+	$checkStmt->close();
 
 	$hash = hash('sha256', $password);
 
