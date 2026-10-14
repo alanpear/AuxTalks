@@ -31,9 +31,26 @@
 				console.log("[log 2] readyState:", request.readyState, "status: ", request.status);
 				if (request.readyState === 4 && request.status === 200){
 					console.log("[log 3] raw response text from login.php:\n", request.responseText);
-					var res = JSON.parse(request.responseText);
-					console.log("[LOG 4]- parsed json response:", res);
-					document.getElementById("response").innerHTML = res.message;
+					try {
+						var res = JSON.parse(request.responseText);
+						console.log("[LOG 4]- parsed json response:", res);
+
+						var responseEl = document.getElementById("response");
+
+						if (res.status === "success" || res.message === "Registration completed!") {
+							responseEl.style.color = "green";
+							responseEl.innerHTML = res.message + " Redirecting to login...";
+							setTimeout(function () {
+									window.location.href = "login.html";
+							}, 1500);
+						} else {
+							responseEl.style.color = "red";
+							responseEl.innerHTML = res.message || "Registration failed";
+						}
+					} catch (e) {
+							document.getElementById("response").innerHTML = request.responseText;
+				}
+								
 				}
 			};
 
@@ -60,7 +77,7 @@
 			<input type="text" id="uname" required><br><br>
 
 			<label>Password</label>
-			<input type="password" id="password"><br><br>
+			<input type="password" id="password" required><br><br>
 
 			<button type="submit">Submit</button>
 
