@@ -1,11 +1,11 @@
+<!DOCTYPE html>
 <html>
-
 <head>
-	<link rel="stylesheet" href="styles.css">
 	<title>Register</title>
 	<script>
 		//function for when registration is submitted
-		function sendRegister(event) {
+		function sendRegister(event)
+		{
 			event.preventDefault();
 
 			//create registration payload
@@ -14,9 +14,12 @@
 				first_name: document.getElementById("first_name").value,
 				last_name: document.getElementById("last_name").value,
 				email: document.getElementById("email").value,
-				uname: document.getElemgitentById("uname").value,
+				uname: document.getElementById("uname").value,
 				password: document.getElementById("password").value
 			};
+			
+			console.log("[log 1] sending data", data);
+
 
 			//create an xml request, do a post request, and set payload to json
 			var request = new XMLHttpRequest();
@@ -24,73 +27,62 @@
 			request.setRequestHeader("Content-Type", "application/json");
 
 			//
-			request.onreadystatechange = function () {
-				if (request.readyState === 4 && request.status === 200) {
-					var res = JSON.parse(request.responseText);
-					if (res.message === "Registration completed!") {
-						document.getElementById("response").innerHTML = "Registration completed successfully!";
-						window.location.href = "login.html" // redirect to homepage
-					} else {
-						document.getElementById("response").innerHTML = res.message;
-					}
+			request.onreadystatechange = function(){
+				console.log("[log 2] readyState:", request.readyState, "status: ", request.status);
+				if (request.readyState === 4 && request.status === 200){
+					console.log("[log 3] raw response text from login.php:\n", request.responseText);
+					try {
+						var res = JSON.parse(request.responseText);
+						console.log("[LOG 4]- parsed json response:", res);
+
+						var responseEl = document.getElementById("response");
+
+						if (res.status === "success" || res.message === "Registration completed!") {
+							responseEl.style.color = "green";
+							responseEl.innerHTML = res.message + " Redirecting to login...";
+							setTimeout(function () {
+									window.location.href = "login.html";
+							}, 1500);
+						} else {
+							responseEl.style.color = "red";
+							responseEl.innerHTML = res.message || "Registration failed";
+						}
+					} catch (e) {
+							document.getElementById("response").innerHTML = request.responseText;
+				}
+								
 				}
 			};
 
 			//data to json string and send post req
 			request.send(JSON.stringify(data));
 		};
-	</script>
-</head>
+		</script>
+	</head>
 
-<body>
-	<h2>Register</h2>
+	<body>
+		<h2>Register</h2>
+		
+		<form onsubmit="sendRegister(event)">
+			<label>First Name</label>
+			<input type="text" id="first_name" required><br><br>
 
-	<form onsubmit="sendRegister(event)">
-		<label>First Name</label>
-		<input type="text" id="first_name" required><br><br>
+			<label>Last Name</label>
+			<input type="text" id="last_name" required><br><br>
 
-		<label>Last Name</label>
-		<input type="text" id="last_name" required><br><br>
+			<label>Email</label>
+			<input type="text" id="email" required><br><br>
 
-		<label>Email</label>
-		<input type="text" id="email" required><br><br>
+			<label>Username</label>
+			<input type="text" id="uname" required><br><br>
 
-		<label>Username</label>
-		<input type="text" id="uname" required><br><br>
+			<label>Password</label>
+			<input type="password" id="password" required><br><br>
 
-		<label>Password</label>
-		<input type="password" id="password"><br><br>
+			<button type="submit">Submit</button>
 
-		<button type="submit">Submit</button>
+		</form>
 		<p id="response"></p>
-		<p>Already have an account? <a href="login.html">Login here</a></p>
-	</form>
-</body>
-
-<script>
-/*
-	function HandleLoginResponse(response) {
-		var text = JSON.parse(response);
-		//	document.getElementById("textResponse").innerHTML = response+"<p>";	
-		document.getElementById("textResponse").innerHTML = "response: " + text + "<p>";
-	}
-
-	function SendLoginRequest(username, password) {
-		var request = new XMLHttpRequest();
-		request.open("POST", "login.php", true);
-		request.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-		request.onreadystatechange = function () {
-
-			if ((this.readyState == 4) && (this.status == 200)) {
-				HandleLoginResponse(this.responseText);
-			}
-		}
-		request.send("type=login&uname=" + username + "&pword=" + password);
-	}
-	*/
-</script>
-
-
-
-
+	</body>
 </html>
+
