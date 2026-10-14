@@ -29,6 +29,7 @@
 				if (request.readyState === 4 && request.status === 200) {
 					var res = JSON.parse(request.responseText);
 					if (res.message === "Registration completed!") {
+						document.getElementById("response").innerHTML = "Registration completed successfully!";
 						window.location.href = "home.html" // redirect to homepage
 					} else {
 						document.getElementId("response").innerHTML = res.message;
