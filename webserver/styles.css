@@ -22,3 +22,27 @@
             width: 100%;
             padding: 8px;
         }
+        
+        .header {
+            font-size: 25px;
+            position: sticky;
+            top: 0;
+            background: white;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 20px;
+            z-index: 1000;
+            padding: 0px 15p;
+            display: flex;
+            text-decoration: none;
+            color: black;
+            border-bottom: 2px solid #F6EBCD; 
+        }
+
+        .header-text a {
+            font-family: 'Arial', sans-serif;
+            text-decoration: none;
+            margin-right: 20px;
+            font-weight: bold;
+            color: #B08E7D;
+        }
