@@ -1,4 +1,4 @@
-require("dotenv").config();
+require("dotenv").config({ path: "../.env" });
 
 const DISCOGS_APi = "https://api.discogs.com";
 
