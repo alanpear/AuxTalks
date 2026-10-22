@@ -43,8 +43,8 @@ if ($httpCode === 429) {
 
 $data = json_decode($response, true);
 if (isset($data['results'][0]['title'])) {
-	echo "SUCCESS " .  PHP_EOL;
-	echo "First Seach Result: " . $data['results'][0]['title] . PHP_EOL;
+	echo "SUCCESS " . PHP_EOL;
+	echo "First Seach Result: " . $data['results'][0]['title'] . PHP_EOL;
 } else {
 	echo "FAILED " . $response . PHP_EOL;
 }
