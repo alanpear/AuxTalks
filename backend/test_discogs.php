@@ -15,7 +15,7 @@ $url = "https://api.discogs.com/database/search?" . http_build_query([
 ]);
 
 $ch = curl_init();
-curl_setopt_array($ch, ]
+curl_setopt_array($ch, [
 	CURLOPT_URL => $url,
 	CURLOPT_RETURNTRANSFER => true,
 	CURLOPT_USERAGENT => $userAgent,
