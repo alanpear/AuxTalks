@@ -4,7 +4,7 @@ error_reporting(E_ALL);
 
 header("Content-Type: application/json");
 
-$lookupPaths = [
+$lookupDirs = [
     __DIR__,
     __DIR__ . '/..',
     __DIR__ . '/../..',
@@ -14,13 +14,13 @@ $lookupPaths = [
 $libLoaded = false;
 $iniPath = 'testRabbitMQ.ini';
 
-foreach ($lookupPaths as $path) {
-    if (file_exists("$path/rabbitMQLib.inc")) {
-        require_once("$path/path.inc");
-        require_once("$path/get_host_info.inc");
-        require_once("$path/rabbitMQLib.inc");
-        if (file_exists("$path/testRabbitMQ.ini")) {
-            $iniPath = "$path/testRabbitMQ.ini";
+foreach ($lookupDirs as $dir) {
+    if (file_exists("$dir/rabbitMQLib.inc")) {
+        require_once("$dir/path.inc");
+        require_once("$dir/get_host_info.inc");
+        require_once("$dir/rabbitMQLib.inc");
+        if (file_exists("$dir/testRabbitMQ.ini")) {
+            $iniPath = "$dir/testRabbitMQ.ini";
         }
         $libLoaded = true;
         break;
@@ -29,77 +29,51 @@ foreach ($lookupPaths as $path) {
 
 if (!$libLoaded) {
     http_response_code(500);
-    echo json_encode(["status" => "error", "message" => "RabbitMQ libraries not found on Web server."]);
+    echo json_encode(["status" => "error", "message" => "RabbitMQ libraries not found."]);
     exit();
 }
 
-$rawInput = file_get_contents("php://input");
-$postData = json_decode($rawInput, true);
+$input = file_get_contents("php://input");
+$body = json_decode($input, true);
 
-$action = $postData['action'] ?? ($_GET['action'] ?? 'search');
+$query = trim($body["query"] ?? ($_GET["query"] ?? ($_GET["q"] ?? "")));
+
+if ($query === "") {
+    http_response_code(400);
+    echo json_encode([
+        "status" => "error",
+        "message" => "Please enter an album name."
+    ]);
+    exit();
+}
 
 try {
     $client = new rabbitMQClient($iniPath, "testServer");
 
-    // Route: Search Music / Albums
-    if ($action === 'search') {
-        $query = trim($postData["query"] ?? ($_GET["query"] ?? ($_GET["q"] ?? "")));
+    $request = [
+        "type"  => "search_music",
+        "query" => $query,
+        "page"  => 1
+    ];
 
-        if ($query === "") {
-            http_response_code(400);
-            echo json_encode(["status" => "error", "message" => "Please enter an album or artist name."]);
-            exit();
-        }
+    $response = $client->send_request($request);
 
-        $request = [
-            "type"  => "search_music",
-            "query" => $query,
-            "page"  => (int)($postData['page'] ?? ($_GET['page'] ?? 1))
-        ];
-
-        $response = $client->send_request($request);
-
-        if (!$response) {
-            http_response_code(502);
-            echo json_encode(["status" => "error", "message" => "No response from Database server."]);
-            exit();
-        }
-
-        echo json_encode($response);
+    if (!$response) {
+        http_response_code(502);
+        echo json_encode([
+            "status"  => "error",
+            "message" => "No response from Database server (AuxTalksQueue)."
+        ]);
         exit();
     }
 
-    elseif ($action === 'details') {
-        $releaseId = (int)($postData['discogs_release_id'] ?? ($_GET['id'] ?? 0));
-
-        if ($releaseId <= 0) {
-            http_response_code(400);
-            echo json_encode(["status" => "error", "message" => "Valid release ID is required."]);
-            exit();
-        }
-
-        $request = [
-            "type"               => "get_release",
-            "discogs_release_id" => $releaseId
-        ];
-
-        $response = $client->send_request($request);
-
-        if (!$response) {
-            http_response_code(502);
-            echo json_encode(["status" => "error", "message" => "No response from Database server."]);
-            exit();
-        }
-
-        echo json_encode($response);
-        exit();
-    }
-
-    http_response_code(400);
-    echo json_encode(["status" => "error", "message" => "Unsupported action '$action'."]);
+    echo json_encode($response);
 
 } catch (Exception $e) {
     http_response_code(500);
-    echo json_encode(["status" => "error", "message" => "RPC Error: " . $e->getMessage()]);
+    echo json_encode([
+        "status"  => "error",
+        "message" => "RPC Error: " . $e->getMessage()
+    ]);
 }
 ?>
