@@ -108,6 +108,79 @@ function doRegister($first, $last, $email, $username, $password)
 
 }
 
+function handleSearchMusic($query, $page = 1) {
+    $db = getDB();
+    $search = "%" . $query . "%";
+    $stmt = $db->prepare("SELECT discogs_release_id, title, artist, release_year, format_summary FROM cached_releases WHERE title LIKE ? OR artist LIKE ? LIMIT 15");
+    $stmt->bind_param("ss", $search, $search);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $cached = [];
+    while ($row = $res->fetch_assoc()) { $cached[] = $row; }
+    $stmt->close();
+
+    if (count($cached) >= 5) {
+        $db->close();
+        return ["status" => "success", "source" => "database_cache", "data" => ["page" => $page, "results" => $cached]];
+    }
+
+    // Cache Miss -> Forward to DMZ
+    $dmzClient = new rabbitMQClient("testRabbitMQ.ini", "dmzServer");
+    $dmzRes = $dmzClient->send_request([
+        'action' => 'search_music',
+        'data'   => ['query' => $query, 'page' => $page]
+    ]);
+
+    if (isset($dmzRes['status']) && $dmzRes['status'] === 'success') {
+        $ins = $db->prepare("INSERT IGNORE INTO cached_releases (discogs_release_id, title, artist, release_year, format_summary) VALUES (?, ?, ?, ?, ?)");
+        foreach ($dmzRes['data']['results'] as $item) {
+            $year = !empty($item['year']) ? (int)$item['year'] : null;
+            $ins->bind_param("issis", $item['discogs_release_id'], $item['title'], $query, $year, $item['format']);
+            $ins->execute();
+        }
+        $ins->close();
+    }
+    $db->close();
+    return $dmzRes;
+}
+
+function handleGetRelease($releaseId) {
+    $db = getDB();
+    $stmt = $db->prepare("SELECT * FROM cached_releases WHERE discogs_release_id = ?");
+    $stmt->bind_param("i", $releaseId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+
+    if ($row = $res->fetch_assoc()) {
+        $row['genres'] = json_decode($row['genres'], true);
+        $row['tracklist'] = json_decode($row['tracklist'], true);
+        $stmt->close();
+        $db->close();
+        return ["status" => "success", "source" => "database_cache", "data" => $row];
+    }
+    $stmt->close();
+
+    // Cache Miss -> Request from DMZ
+    $dmzClient = new rabbitMQClient("testRabbitMQ.ini", "dmzServer");
+    $dmzRes = $dmzClient->send_request([
+        'action' => 'fetch_release_details',
+        'data'   => ['discogs_release_id' => $releaseId]
+    ]);
+
+    if (isset($dmzRes['status']) && $dmzRes['status'] === 'success') {
+        $d = $dmzRes['data'];
+        $genres = json_encode($d['genres'] ?? []);
+        $tracks = json_encode($d['tracklist'] ?? []);
+        $ins = $db->prepare("INSERT INTO cached_releases (discogs_release_id, title, artist, release_year, format_summary, genres, tracklist, lowest_price, marketplace_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE lowest_price = VALUES(lowest_price)");
+        $ins->bind_param("ississsds", $d['discogs_release_id'], $d['title'], $d['artist'], $d['release_year'], $d['format_summary'], $genres, $tracks, $d['lowest_price'], $d['marketplace_url']);
+        $ins->execute();
+        $ins->close();
+    }
+    $db->close();
+    return $dmzRes;
+}
+
+
 function doLogout($sessionKey){
 	if(empty($sessionKey)){
 		return["status"=>"error", "message"=>"no session key provided"];
@@ -155,65 +228,6 @@ function validateSession($sessionKey){
 	return["status" => "error", "message" => "session expired or doesnt exist"];
 }
 
-
-
-function getReleaseDetails($releaseId) {
-    $db = getDB();
-    if (!$db) return ["status" => "error", "message" => "Database offline"];
-
-    $stmt = $db->prepare("SELECT discogs_release_id, title, artist, release_year, format_summary, genres, tracklist, lowest_price, marketplace_url FROM cached_releases WHERE discogs_release_id = ?");
-    $stmt->bind_param("i", $releaseId);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    if ($row = $result->fetch_assoc()) {
-        $row['genres'] = json_decode($row['genres'], true);
-        $row['tracklist'] = json_decode($row['tracklist'], true);
-        $stmt->close();
-        $db->close();
-        return ["status" => "success", "source" => "database_cache", "data" => $row];
-    }
-    $stmt->close();
-
-    echo " [DB] Cache miss for Release ID: $releaseId. Requesting from DMZ..." . PHP_EOL;
-    $dmzClient = new rabbitMQClient("testRabbitMQ.ini", "dmzServer");
-    $dmzResponse = $dmzClient->send_request([
-        'action' => 'fetch_release_details',
-        'data'   => ['discogs_release_id' => $releaseId]
-    ]);
-
-    if (!isset($dmzResponse['status']) || $dmzResponse['status'] !== 'success') {
-        $db->close();
-        return ["status" => "error", "message" => "Failed to retrieve from DMZ"];
-    }
-
-    $d = $dmzResponse['data'];
-
-    $ins = $db->prepare("INSERT INTO cached_releases (discogs_release_id, title, artist, release_year, format_summary, genres, tracklist, lowest_price, marketplace_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE lowest_price = VALUES(lowest_price)");
-    
-    $genresJson = json_encode($d['genres'] ?? []);
-    $tracklistJson = json_encode($d['tracklist'] ?? []);
-    
-    $ins->bind_param(
-        "ississsds", 
-        $d['discogs_release_id'], 
-        $d['title'], 
-        $d['artist'], 
-        $d['release_year'], 
-        $d['format_summary'], 
-        $genresJson, 
-        $tracklistJson, 
-        $d['lowest_price'], 
-        $d['marketplace_url']
-    );
-    $ins->execute();
-    $ins->close();
-    $db->close();
-
-    return ["status" => "success", "source" => "dmz_fetched", "data" => $d];
-}
-
-
 function requestProcessor($request)
 {
   echo "received request".PHP_EOL;
@@ -239,8 +253,10 @@ function requestProcessor($request)
 		$request['uname'],
 		$request['password']
 	);
-	case "get_release":
-		return getReleaseDetails((int)($request['discogs_release_id']));
+	case "search_music":
+            return handleSearchMusic($request['query'] ?? '', (int)($request['page'] ?? 1));
+        case "get_release":
+            return handleGetRelease((int)($request['discogs_release_id'] ?? 0));
   }
   return array("returnCode" => '0', 'message'=>"Server received request and processed");
 }
