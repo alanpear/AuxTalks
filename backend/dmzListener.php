@@ -1,8 +1,8 @@
-#!/usr/php
+#!/usr/bin/php
 <?php
-require_once('path.inc);
-require_once('get_host_info.inc);
-require_once('rabbitMQLib.inc);
+require_once('path.inc');
+require_once('get_host_info.inc');
+require_once('rabbitMQLib.inc');
 
 $ini = parse_ini_file(__DIR__ . "/testRabbitMQ.ini", true);
 define('DISCOGS_KEY', $ini['discogs']['CONSUMER_KEY'] ?? '');
@@ -22,14 +22,14 @@ function callDiscogsAPI($endpoint, $params = [])
 	CURLOPT_RETURNTRANSFER => true,
 	CURLOPT_USERAGENT => DISCOGS_USER_AGENT,
 	CURLOPT_HTTPHEADER => [
-		"Authorization: Discogs Key=" . DISCOGS_KEY . ", secret =" . DISCOGS_SECRET,
+		"Authorization: Discogs key=" . DISCOGS_KEY . ", secret=" . DISCOGS_SECRET,
 		"Accept: Application/json"
 	],
 	CURLOPT_TIMEOUT => 10
 
 	]);
 
-	$response = curl=exec($ch);
+	$response = curl_exec($ch);
 	$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 	$curlError = curl_error($ch);
 	curl_close($ch);
@@ -44,13 +44,14 @@ function callDiscogsAPI($endpoint, $params = [])
 
 	if ($httpCode !== 200) {
 	return ["status" => "error", "message" => "Discogs API returned HTTP " . $httpCode];
-
+	}
+	
 	$data = json_decode($response, true);
-	if (!data) {
+	if (!$data) {
 		return ["status" => "error", "message" => "Failed to parse Discogs JSON response"];
 	}
 
-	return ["Status" => "success", "payload" => $data];
+	return ["status" => "success", "payload" => $data];
 }
 
 function processDMZRequest($request)
@@ -61,7 +62,7 @@ function processDMZRequest($request)
 	echo " [DMZ] Processing task: " . $action . PHP_EOL;
 
 	switch($action) {
-		case 'search music':
+		case 'search_music':
 			$query = $data['query'] ?? '';
 			$page = (int)($data['page'] ?? 1);
 
@@ -81,10 +82,10 @@ function processDMZRequest($request)
 
 			foreach ($rawResults as $item) {
 				$formattedResults[] = [
-					'discogs_release_id' => $item['id],
+					'discogs_release_id' => $item['id'],
 					'title' => $item['title'],
 					'year' => $item['year'] ?? null,
-					'format' => implode(', ', $item['format ?? []),
+					'format' => implode(', ', $item['format'] ?? []),
 					'thumb' => $item['thumb'] ?? ''
 				];
 			}
@@ -94,7 +95,7 @@ function processDMZRequest($request)
 				"message" => "Search results retrived",
 				"data" => [
 					"page" => $page,
-					"results" = $formattedResults
+					"results" => $formattedResults
 				]
 			];
 		case 'fetch_release_details':
@@ -103,12 +104,12 @@ function processDMZRequest($request)
 				return ["status" => "error", "message" => "Invalid Discogs Release ID"];
 			}
 
-			$rel = callDiscogsAPI("/releases/{releaseId}");
-			if ($rel['status'] === 'error' {
+			$rel = callDiscogsAPI("/releases/{$releaseId}");
+			if ($rel['status'] === 'error') {
 				return $rel;
 			}
 
-			$stats = callDiscogsAPI("/marketplace/stats/{releasedId}");
+			$stats = callDiscogsAPI("/marketplace/stats/{$releaseId}");
 			$relData = $rel['payload'];
 			$statsData = ($stats['status'] === 'success') ? $stats['payload'] : [];
 
@@ -121,7 +122,7 @@ function processDMZRequest($request)
 				];
 			}
 
-			$artistName = $relData['artist_sort'] ?? ($relData['artist'][0]['name'] ?? 'Unknown Artist');
+			$artistName = $relData['artists_sort'] ?? ($relData['artists'][0]['name'] ?? 'Unknown Artist');
 
 			return [
 				"status" => "success",
@@ -135,13 +136,13 @@ function processDMZRequest($request)
 					"styles" => $relData ['styles'] ?? [],
 					"labels" => array_column($relData['labels'] ?? [], 'name'),
 					"tracklist" => $tracklist,
-					"discogs_rating" => relData['community']['rating']['average'] ?? 0.0,
+					"discogs_rating" => $relData['community']['rating']['average'] ?? 0.0,
 					"discogs_rating_count" => $relData['community']['rating']['count'] ?? 0,
 					"lowest_price" => $statsData['lowest_price']['value'] ?? null,
 					"num_for_sale" => $statsData['num_for_sale'] ?? 0,
-					"marketplace_ulr" => "https://www.discogs.com/sell/release/{releaseId}"
+					"marketplace_url" => "https://www.discogs.com/sell/release/{$releaseId}"
 				]
-			]:
+			];
 
 		default:
 			return ["status" => "error", "message" => "Unsupported action '{$action}' on DMZ"];
