@@ -184,8 +184,67 @@ function requestProcessor($request)
   return array("returnCode" => '0', 'message'=>"Server received request and processed");
 }
 
-$server = new rabbitMQServer("testRabbitMQ.ini","testServer");
 
+function getReleaseDetails($releaseId) {
+    $db = getDB();
+    if (!$db) return ["status" => "error", "message" => "Database offline"];
+
+    $stmt = $db->prepare("SELECT discogs_release_id, title, artist, release_year, format_summary, genres, tracklist, lowest_price, marketplace_url FROM cached_releases WHERE discogs_release_id = ?");[cite: 6]
+    $stmt->bind_param("i", $releaseId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($row = $result->fetch_assoc()) {
+        $row['genres'] = json_decode($row['genres'], true);[cite: 6]
+        $row['tracklist'] = json_decode($row['tracklist'], true);[cite: 6]
+        $stmt->close();
+        $db->close();
+        return ["status" => "success", "source" => "database_cache", "data" => $row];
+    }
+    $stmt->close();
+
+    echo " [DB] Cache miss for Release ID: $releaseId. Requesting from DMZ..." . PHP_EOL;
+    $dmzClient = new rabbitMQClient("testRabbitMQ.ini", "dmzServer");[cite: 7]
+    $dmzResponse = $dmzClient->send_request([
+        'action' => 'fetch_release_details',
+        'data'   => ['discogs_release_id' => $releaseId]
+    ]);
+
+    if (!isset($dmzResponse['status']) || $dmzResponse['status'] !== 'success') {
+        $db->close();
+        return ["status" => "error", "message" => "Failed to retrieve from DMZ"];
+    }
+
+    $d = $dmzResponse['data'];
+
+    $ins = $db->prepare("INSERT INTO cached_releases (discogs_release_id, title, artist, release_year, format_summary, genres, tracklist, lowest_price, marketplace_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE lowest_price = VALUES(lowest_price)");[cite: 6]
+    
+    $genresJson = json_encode($d['genres'] ?? []);
+    $tracklistJson = json_encode($d['tracklist'] ?? []);
+    
+    $ins->bind_param(
+        "ississsds", 
+        $d['discogs_release_id'], 
+        $d['title'], 
+        $d['artist'], 
+        $d['release_year'], 
+        $d['format_summary'], 
+        $genresJson, 
+        $tracklistJson, 
+        $d['lowest_price'], 
+        $d['marketplace_url']
+    );
+    $ins->execute();
+    $ins->close();
+    $db->close();
+
+    return ["status" => "success", "source" => "dmz_fetched", "data" => $d];
+}
+
+
+
+
+$server = new rabbitMQServer("testRabbitMQ.ini","testServer");
 echo "testRabbitMQServer BEGIN".PHP_EOL;
 $server->process_requests('requestProcessor');
 echo "testRabbitMQServer END".PHP_EOL;
