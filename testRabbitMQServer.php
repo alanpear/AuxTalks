@@ -111,43 +111,57 @@ function doRegister($first, $last, $email, $username, $password)
 }
 
 function handleSearchMusic($query, $page = 1) {
-    $db = getDB();
-    $search = "%" . $query . "%";
+    $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
+    if (!$db) return ["status" => "error", "message" => "Database offline"];
+
+    //Check local cached_releases
+    $term = "%" . $query . "%";
     $stmt = $db->prepare("SELECT discogs_release_id, title, artist, release_year, format_summary FROM cached_releases WHERE title LIKE ? OR artist LIKE ? LIMIT 15");
-    $stmt->bind_param("ss", $search, $search);
+    $stmt->bind_param("ss", $term, $term);
     $stmt->execute();
     $res = $stmt->get_result();
+
     $cached = [];
-    while ($row = $res->fetch_assoc()) { $cached[] = $row; }
+    while ($row = $res->fetch_assoc()) {
+        $cached[] = $row;
+    }
     $stmt->close();
 
-    if (count($cached) >= 5) {
+    if (count($cached) >= 3) {
         $db->close();
-        return ["status" => "success", "source" => "database_cache", "data" => ["page" => $page, "results" => $cached]];
+        return [
+            "status" => "success",
+            "source" => "database_cache",
+            "data"   => ["page" => $page, "results" => $cached]
+        ];
     }
 
-    // Cache Miss -> Forward to DMZ
+    //Cache Miss: Forward request to DMZ
+    echo " [DB] Cache miss for '$query'. Forwarding to DMZ..." . PHP_EOL;
     $dmzClient = new rabbitMQClient("testRabbitMQ.ini", "dmzServer");
     $dmzRes = $dmzClient->send_request([
         'action' => 'search_music',
         'data'   => ['query' => $query, 'page' => $page]
     ]);
 
-    if (isset($dmzRes['status']) && $dmzRes['status'] === 'success') {
+    //Cache results in MySQL
+    if (isset($dmzRes['status']) && $dmzRes['status'] === 'success' && !empty($dmzRes['data']['results'])) {
         $ins = $db->prepare("INSERT IGNORE INTO cached_releases (discogs_release_id, title, artist, release_year, format_summary) VALUES (?, ?, ?, ?, ?)");
         foreach ($dmzRes['data']['results'] as $item) {
             $year = !empty($item['year']) ? (int)$item['year'] : null;
-            $ins->bind_param("issis", $item['discogs_release_id'], $item['title'], $query, $year, $item['format']);
+            $format = $item['format'] ?? 'Standard';
+            $ins->bind_param("issis", $item['discogs_release_id'], $item['title'], $query, $year, $format);
             $ins->execute();
         }
         $ins->close();
     }
+
     $db->close();
     return $dmzRes;
 }
 
 function handleGetRelease($releaseId) {
-    $db = getDB();
+    $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
     $stmt = $db->prepare("SELECT * FROM cached_releases WHERE discogs_release_id = ?");
     $stmt->bind_param("i", $releaseId);
     $stmt->execute();
