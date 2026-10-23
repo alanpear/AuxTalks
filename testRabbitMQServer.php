@@ -12,24 +12,26 @@ function doLogin($username,$password)
 		return ["status" => "error", "message" => "database connection failed"];
 	}
 
+	// makes a hash of the password
 	$inputHash = hash('sha256', $password);
-
+	
+	//prepares statement to get sent and checks if the statement was made
 	$stmt = $db->prepare("SELECT password FROM users WHERE user = ?");
 	if(!$stmt){
 		$db->close();
 		return ["status" => "error", "message" => "database prepare failed: " . $db->error];
 	}
 
-	$stmt->bind_param("s", $username);
+	$stmt->bind_param("s", $username); //add username passed through to the function to the statement
 	$stmt->execute();
-	$result = $stmt->get_result();
+	$result = $stmt->get_result(); //returns the hash of the password
 
 	if($row = $result->fetch_assoc()){
-		if (hash_equals($row['password'], $inputHash)) {
-			$sessionKey = bin2hex(random_bytes(32));
+		if (hash_equals($row['password'], $inputHash)) { //compares the hash of the inputed password to the hash from the db
+			$sessionKey = bin2hex(random_bytes(32)); // makes a random 32 bit session key
 
-			$stmtSession = $db->prepare("INSERT INTO sessions (user, session_key, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR))");
-			if($stmtSession) {
+			$stmtSession = $db->prepare("INSERT INTO sessions (user, session_key, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR))"); 
+			if($stmtSession) { //checks if the session stmt was created and then excutes the session creation
 				$stmtSession->bind_param("ss", $username, $sessionKey);
 				$stmtSession->execute();
 				$stmtSession->close();
@@ -267,4 +269,3 @@ $server->process_requests('requestProcessor');
 echo "testRabbitMQServer END".PHP_EOL;
 exit();
 ?>
-
