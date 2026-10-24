@@ -147,6 +147,7 @@ class rabbitMQClient
 	private $routing_key = '*';
 	private $response_queue = array();
 	private $exchange_type = "topic";
+	private $callback_queue;
 
 	function __construct($machine, $server = "rabbitMQ")
 	{
@@ -176,7 +177,10 @@ class rabbitMQClient
 		  echo  "unknown uid\n";
 		  return true;
 		}
-    $this->conn_queue->ack($response->getDeliveryTag());
+    if(isset($this->callback_queue)) {
+	$this->callback_queue->($response->getDeliveryTag());
+	}
+
 		$body = $response->getBody();
 		$payload = json_decode($body, true);
 		if (!(isset($payload)))
@@ -210,10 +214,11 @@ class rabbitMQClient
       $exchange->setName($this->exchange);
       $exchange->setType($this->exchange_type);
 
-      $callback_queue = new AMQPQueue($channel);
-      $callback_queue->setName($this->queue."_response");
-      $callback_queue->declare();
-			$callback_queue->bind($exchange->getName(),$this->routing_key.".response");
+      $this->callback_queue = new AMQPQueue($channel);
+      $this->callback_queue->setName($this->queue."_response".uid);
+      $this->callback_queue->setFlags(AMQP_AUTODELETE | AMQP_EXCLUSIVE);
+      $this->callback_queue->declareQueue();
+      $this->callback_queue->bind($exchange-getName(), $this->routing_key."response")
 
 			$this->conn_queue = new AMQPQueue($channel);
 			$this->conn_queue->setName($this->queue);
@@ -224,7 +229,13 @@ class rabbitMQClient
 			$callback_queue->consume(array($this,'process_response'));
 
 			$response = $this->response_queue[$uid];
-			unset($this->response_queue[$uid]);
+			unset($this->response_queue[$uid];
+			try {
+				$this->callback_queue-cancel();
+				$channel->close();
+				$conn->disconnect();
+			} catch (Exception $e) {}
+
 			return $response;
 		}
 		catch(Exception $e)
