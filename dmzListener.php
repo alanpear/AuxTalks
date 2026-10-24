@@ -129,6 +129,10 @@ function processDMZRequest($request)
 
 			$artistName = $relData['artists_sort'] ?? ($relData['artists'][0]['name'] ?? 'Unknown Artist');
 
+			$formats = $relData['formats'] ?? [];
+			$formatNames = is_array($formats) ? array_column($formats, 'name') : [];
+			$formatSummary = !empty($formatNames) ? implode(', ', $formatNames) : 'Standard';
+
 			return [
 				"status" => "success",
 				"data" => [
@@ -136,7 +140,7 @@ function processDMZRequest($request)
 					"title" => $relData['title'],
 					"artist" => $artistName,
 					"release_year" => $relData['year'] ?? null,
-					"format_summary" => implode(', ', array_column($relData['formats'] ?? [], 'name')),
+					"format_summary" => $formatSummary,
 					"genres" => $relData['genres'] ?? [],
 					"styles" => $relData ['styles'] ?? [],
 					"labels" => array_column($relData['labels'] ?? [], 'name'),
