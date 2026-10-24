@@ -73,19 +73,18 @@ class rabbitMQServer
 
 		$replyTo = $msg->getReplyTo();
 
-		$replyKey = (strpos($replyTo, '_response') !== false && strpos($replyTo, '.') === false)
-				? $this->routing_key . ".response"
-				: $replyTo;
+			$defaultExchange = new AMQPExchange($channel);
+			$defaultExchange->setName("");
 
-		$exchange->publish(
+			$defaultExchange->publish(
 				json_encode($response),
-				$replyKey,
+				$replyTo,
 				AMQP_NOPARAM,
 				array('correlation_id' => $msg->getCorrelationId())
 			);
-			$conn->disconnect();
 
-				return;
+			$conn->disconnect();
+			return;
 			}
 		}
 		catch(Exception $e)
@@ -226,31 +225,34 @@ class rabbitMQClient
       $this->callback_queue->setName($this->queue . "_response_" . $uid);
       $this->callback_queue->setFlags(AMQP_AUTODELETE);
       $this->callback_queue->declareQueue();
-      $this->callback_queue->bind($exchange->getName(), $this->callback_queue->getName());
-      $this->callback_queue->bind($exchange->getName(), $this->routing_key . ".response");
 
-			$this->conn_queue = new AMQPQueue($channel);
-			$this->conn_queue->setName($this->queue);
-			$this->conn_queue->bind($exchange->getName(),$this->routing_key);
+      $this->conn_queue = new AMQPQueue($channel);
+      $this->conn_queue->setName($this->queue);
+      $this->conn_queue->bind($exchange->getName(), $this->routing_key);
 
-			$exchange->publish(
-				$json_message,
-				$this->routing_key,
-				AMQP_NOPARAM,
-				array('reply_to' => $this->callback_queue->getName(), 'correlation_id' => $uid)
-			);
+      $exchange->publish(
+          $json_message,
+          $this->routing_key,
+          AMQP_NOPARAM,
+          array(
+              'reply_to'       => $this->callback_queue->getName(),
+              'correlation_id' => $uid
+          )
+      );
+
       $this->response_queue[$uid] = "waiting";
-			$this->callback_queue->consume(array($this,'process_response'));
+      $this->callback_queue->consume(array($this, 'process_response'));
 
-			$response = $this->response_queue[$uid];
-			unset($this->response_queue[$uid]);
-			try {
-				$this->callback_queue->cancel();
-				$channel->close();
-				$conn->disconnect();
-			} catch (Exception $e) {}
+      $response = $this->response_queue[$uid];
+      unset($this->response_queue[$uid]);
 
-			return $response;
+      try {
+          $this->callback_queue->cancel();
+          $channel->close();
+          $conn->disconnect();
+      } catch (Exception $e) {}
+
+      return $response;
 		}
 		catch(Exception $e)
 		{
