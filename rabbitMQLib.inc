@@ -76,6 +76,7 @@ class rabbitMQServer
 			$replykey = $this->routing_key.".response";
 			$conn_queue->bind($exchange->getName(),$replykey);
 			$exchange->publish(json_encode($response),$replykey,AMQP_NOPARAM,array('correlation_id'=>$msg->getCorrelationId()));
+			$conn->disconnect();
 
 				return;
 			}
@@ -178,7 +179,7 @@ class rabbitMQClient
 		  return true;
 		}
     if(isset($this->callback_queue)) {
-	$this->callback_queue->($response->getDeliveryTag());
+	$this->callback_queue->ack($response->getDeliveryTag());
 	}
 
 		$body = $response->getBody();
@@ -215,23 +216,28 @@ class rabbitMQClient
       $exchange->setType($this->exchange_type);
 
       $this->callback_queue = new AMQPQueue($channel);
-      $this->callback_queue->setName($this->queue."_response".uid);
+      $this->callback_queue->setName($this->queue . "_response_" . $uid);
       $this->callback_queue->setFlags(AMQP_AUTODELETE | AMQP_EXCLUSIVE);
       $this->callback_queue->declareQueue();
-      $this->callback_queue->bind($exchange-getName(), $this->routing_key."response")
+      $this->callback_queue->bind($exchange->getName(), $this->routing_key.".response");
 
 			$this->conn_queue = new AMQPQueue($channel);
 			$this->conn_queue->setName($this->queue);
 			$this->conn_queue->bind($exchange->getName(),$this->routing_key);
 
-			$exchange->publish($json_message,$this->routing_key,AMQP_NOPARAM,array('reply_to'=>$callback_queue->getName(),'correlation_id'=>$uid));
+			$exchange->publish(
+				$json_message,
+				$this->routing_key,
+				AMQP_NOPARAM,
+				array('reply_to' => $this->callback_queue->getName(), 'correlation_id' => $uid)
+			);
       $this->response_queue[$uid] = "waiting";
-			$callback_queue->consume(array($this,'process_response'));
+			$this->callback_queue->consume(array($this,'process_response'));
 
 			$response = $this->response_queue[$uid];
-			unset($this->response_queue[$uid];
+			unset($this->response_queue[$uid]);
 			try {
-				$this->callback_queue-cancel();
+				$this->callback_queue->cancel();
 				$channel->close();
 				$conn->disconnect();
 			} catch (Exception $e) {}
