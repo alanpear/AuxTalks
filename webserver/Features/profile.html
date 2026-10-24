@@ -5,6 +5,7 @@
     <link rel="stylesheet" href="styles.css">
 
     <script>
+
         function checkSession()
         {
             var request = new XMLHttpRequest();
@@ -18,16 +19,28 @@
                 {
                     if (request.status === 200)
                     {
-                        var res = JSON.parse(request.responseText);
+                        try {
+                            var res = JSON.parse(request.responseText);
 
-                        if (res.status === "success")
-                        {
-                            document.getElementById("username").textContent = res.user;
-                            document.getElementById("profile").hidden = false;
-                            document.getElementById().textContent
+                            if (res.status === "success")
+                            {
+                                // Display username
+                                document.getElementById("username").textContent = res.user;
+
+                                // Show profile
+                                document.getElementById("profile").hidden = false;
+
+                                // Retrieve music collection
+                                getCollection();
+                            }
+                            else
+                            {
+                                window.location.href = "login.html";
+                            }
                         }
-                        else
+                        catch (error)
                         {
+                            console.error(error);
                             window.location.href = "login.html";
                         }
                     }
@@ -43,7 +56,72 @@
             }));
         }
 
+
+        function getCollection()
+        {
+            var request = new XMLHttpRequest();
+
+            request.open("POST", "profile.php", true);
+
+            request.onreadystatechange = function()
+            {
+                if (request.readyState === 4)
+                {
+                    var collection = document.getElementById("music_collection");
+
+                    if (request.status !== 200)
+                    {
+                        collection.textContent = "Unable to load music collection.";
+                        return;
+                    }
+
+                    try {
+                        var res = JSON.parse(request.responseText);
+
+                        if (res.status === "success")
+                        {
+                            collection.replaceChildren();
+
+                            if (!Array.isArray(res.albums) || res.albums.length === 0)
+                            {
+                                collection.textContent = "Your music collection is empty.";
+                                return;
+                            }
+
+                            res.albums.forEach(function(album)
+                            {
+                                var albumDiv = document.createElement("div");
+
+                                var title = document.createElement("h3");
+                                title.textContent = album.title || "Unknown Album";
+
+                                var artist = document.createElement("p");
+                                artist.textContent = album.artist || "Unknown Artist";
+
+                                albumDiv.appendChild(title);
+                                albumDiv.appendChild(artist);
+
+                                collection.appendChild(albumDiv);
+                            });
+                        }
+                        else
+                        {
+                            collection.textContent = res.message || "Unable to load collection.";
+                        }
+                    }
+                    catch (error)
+                    {
+                        console.error(error);
+                        collection.textContent = "Invalid server response.";
+                    }
+                }
+            };
+
+            request.send();
+        }
+
         window.onload = checkSession;
+
     </script>
 </head>
 
@@ -58,7 +136,7 @@
         <h2>My Music Collection</h2>
 
         <div id="music_collection">
-            <p>Your music collection is currently empty.</p>
+            <p>Loading music collection...</p>
         </div>
 
     </main>
