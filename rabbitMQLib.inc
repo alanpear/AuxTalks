@@ -71,11 +71,18 @@ class rabbitMQServer
       $exchange->setName($this->exchange);
       $exchange->setType($this->exchange_type);
 
-			$conn_queue = new AMQPQueue($channel);
-			$conn_queue->setName($msg->getReplyTo());
-			$replykey = $this->routing_key.".response";
-			$conn_queue->bind($exchange->getName(),$replykey);
-			$exchange->publish(json_encode($response),$replykey,AMQP_NOPARAM,array('correlation_id'=>$msg->getCorrelationId()));
+		$replyTo = $msg->getReplyTo();
+
+		$replyKey = (strpos($replyTo, '_response') !== false && strpos($replyTo, '.') === false)
+				? $this->routing_key . ".response"
+				: $replyTo;
+
+		$exchange->publish(
+				json_encode($response),
+				$replyKey,
+				AMQP_NOPARAM,
+				array('correlation_id' => $msg->getCorrelationId())
+			);
 			$conn->disconnect();
 
 				return;
@@ -217,9 +224,10 @@ class rabbitMQClient
 
       $this->callback_queue = new AMQPQueue($channel);
       $this->callback_queue->setName($this->queue . "_response_" . $uid);
-      $this->callback_queue->setFlags(AMQP_AUTODELETE | AMQP_EXCLUSIVE);
+      $this->callback_queue->setFlags(AMQP_AUTODELETE);
       $this->callback_queue->declareQueue();
-      $this->callback_queue->bind($exchange->getName(), $this->routing_key.".response");
+      $this->callback_queue->bind($exchange->getName(), $this->callback_queue->getName());
+      $this->callback_queue->bind($exchange->getName(), $this->routing_key . ".response");
 
 			$this->conn_queue = new AMQPQueue($channel);
 			$this->conn_queue->setName($this->queue);
