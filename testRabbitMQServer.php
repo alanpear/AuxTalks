@@ -4,6 +4,15 @@ require_once('path.inc');
 require_once('get_host_info.inc');
 require_once('rabbitMQLib.inc');
 
+// Persistent DMZ client to prevent creating new channels/queues on every request
+function getDMZClient() {
+	static $dmzClient = null;
+	if ($dmzClient === null) {
+		$dmzClient = new rabbitMQClient("testRabbitMQ.ini", "dmzServer");
+	}
+	return $dmzClient;
+}
+
 function doLogin($username,$password)
 {
 	// lookup username in databas
@@ -62,7 +71,7 @@ function doRegister($first, $last, $email, $username, $password)
 {
 	$db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
 	if($db->connect_error){
-		return ["message" => "Database connection failed"];
+		return ["status" => "error", "message" => "Database connection failed"];
 	}
 	
 	$checkStmt = $db->prepare("SELECT user, email FROM users WHERE user = ? OR email = ?");
@@ -94,25 +103,25 @@ function doRegister($first, $last, $email, $username, $password)
 	if(!$stmt){
 		$err=$db->error;
 		$db->close();
-		return ["message" => "Database prepare failed: " . $err];
+		return ["status" => "error", "message" => "Database prepare failed: " . $err];
 	}
 	$stmt->bind_param("sssss", $first, $last, $email, $username, $hash);
 
 	if ($stmt->execute()){
 		$stmt->close();
 		$db->close();
-		return["message" => "Registration completed!"];
+		return["status" => "success", "message" => "Registration completed!"];
 	}
 
 		$stmt->close();
 		$db->close();
-		return ["message" => "Username or email already exists."];
+		return ["status" => "error", "message" => "Username or email already exists."];
 
 }
 
 function handleSearchMusic($query, $page = 1) {
     $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
-    if (!$db) return ["status" => "error", "message" => "Database offline"];
+    if ($db->connect_error) return ["status" => "error", "message" => "Database offline"];
 
     //Check local cached_releases
     $term = "%" . $query . "%";
@@ -136,24 +145,27 @@ function handleSearchMusic($query, $page = 1) {
         ];
     }
 
-    //Cache Miss: Forward request to DMZ
+    //Cache Miss: Forward request to DMZ using persistent client
     echo " [DB] Cache miss for '$query'. Forwarding to DMZ..." . PHP_EOL;
-    $dmzClient = new rabbitMQClient("testRabbitMQ.ini", "dmzServer");
+    $dmzClient = getDMZClient();
     $dmzRes = $dmzClient->send_request([
         'action' => 'search_music',
         'data'   => ['query' => $query, 'page' => $page]
     ]);
 
     //Cache results in MySQL
-    if (isset($dmzRes['status']) && $dmzRes['status'] === 'success' && !empty($dmzRes['data']['results'])) {
-        $ins = $db->prepare("INSERT IGNORE INTO cached_releases (discogs_release_id, title, artist, release_year, format_summary) VALUES (?, ?, ?, ?, ?)");
-        foreach ($dmzRes['data']['results'] as $item) {
-            $year = !empty($item['year']) ? (int)$item['year'] : null;
-            $format = $item['format'] ?? 'Standard';
-            $ins->bind_param("issis", $item['discogs_release_id'], $item['title'], $query, $year, $format);
-            $ins->execute();
+    if (isset($dmzRes['status']) && $dmzRes['status'] === 'success') {
+        $resultsToCache = $dmzRes['data']['results'] ?? ($dmzRes['results'] ?? []);
+        if (!empty($resultsToCache)) {
+            $ins = $db->prepare("INSERT IGNORE INTO cached_releases (discogs_release_id, title, artist, release_year, format_summary) VALUES (?, ?, ?, ?, ?)");
+            foreach ($resultsToCache as $item) {
+                $year = !empty($item['year']) ? (int)$item['year'] : null;
+                $format = $item['format'] ?? 'Standard';
+                $ins->bind_param("issis", $item['discogs_release_id'], $item['title'], $query, $year, $format);
+                $ins->execute();
+            }
+            $ins->close();
         }
-        $ins->close();
     }
 
     $db->close();
@@ -162,22 +174,28 @@ function handleSearchMusic($query, $page = 1) {
 
 function handleGetRelease($releaseId) {
     $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
+    if ($db->connect_error) return ["status" => "error", "message" => "Database offline"];
+
     $stmt = $db->prepare("SELECT * FROM cached_releases WHERE discogs_release_id = ?");
     $stmt->bind_param("i", $releaseId);
     $stmt->execute();
     $res = $stmt->get_result();
 
     if ($row = $res->fetch_assoc()) {
-        $row['genres'] = json_decode($row['genres'], true);
-        $row['tracklist'] = json_decode($row['tracklist'], true);
-        $stmt->close();
-        $db->close();
-        return ["status" => "success", "source" => "database_cache", "data" => $row];
+        // Only return from cache if details (tracklist) exist
+        if (!empty($row['tracklist'])) {
+            $row['genres'] = json_decode($row['genres'], true);
+            $row['tracklist'] = json_decode($row['tracklist'], true);
+            $stmt->close();
+            $db->close();
+            return ["status" => "success", "source" => "database_cache", "data" => $row];
+        }
     }
     $stmt->close();
 
-    // Cache Miss -> Request from DMZ
-    $dmzClient = new rabbitMQClient("testRabbitMQ.ini", "dmzServer");
+    // Cache Miss -> Request from DMZ using persistent client
+    echo " [DB] Cache miss for Release ID $releaseId. Forwarding to DMZ..." . PHP_EOL;
+    $dmzClient = getDMZClient();
     $dmzRes = $dmzClient->send_request([
         'action' => 'fetch_release_details',
         'data'   => ['discogs_release_id' => $releaseId]
@@ -187,7 +205,7 @@ function handleGetRelease($releaseId) {
         $d = $dmzRes['data'];
         $genres = json_encode($d['genres'] ?? []);
         $tracks = json_encode($d['tracklist'] ?? []);
-        $ins = $db->prepare("INSERT INTO cached_releases (discogs_release_id, title, artist, release_year, format_summary, genres, tracklist, lowest_price, marketplace_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE lowest_price = VALUES(lowest_price)");
+        $ins = $db->prepare("INSERT INTO cached_releases (discogs_release_id, title, artist, release_year, format_summary, genres, tracklist, lowest_price, marketplace_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE genres = VALUES(genres), tracklist = VALUES(tracklist), lowest_price = VALUES(lowest_price)");
         $ins->bind_param("ississsds", $d['discogs_release_id'], $d['title'], $d['artist'], $d['release_year'], $d['format_summary'], $genres, $tracks, $d['lowest_price'], $d['marketplace_url']);
         $ins->execute();
         $ins->close();
@@ -252,22 +270,25 @@ function requestProcessor($request)
   {
     return "ERROR: unsupported message type";
   }
+
+  // Accepts 'uname', 'user', or 'username' dynamically
+  $username = $request['uname'] ?? ($request['user'] ?? ($request['username'] ?? ''));
+
   switch ($request['type'])
   {
     case "login":
-      return doLogin($request['uname'],$request['password']);
+      return doLogin($username, $request['password'] ?? '');
     case "validate_session":
-	    //return ["message" => "session validation not implemented yet"];
-	    return validateSession($request['sessionKey']);
+	    return validateSession($request['sessionKey'] ?? '');
     case "logout":
 	    return doLogout($request['sessionKey'] ?? '');
     case "register":
 	return doRegister(
-		$request['first_name'],
-		$request['last_name'],
-		$request['email'],
-		$request['uname'],
-		$request['password']
+		$request['first_name'] ?? '',
+		$request['last_name'] ?? '',
+		$request['email'] ?? '',
+		$username,
+		$request['password'] ?? ''
 	);
 	case "search_music":
             return handleSearchMusic($request['query'] ?? '', (int)($request['page'] ?? 1));
