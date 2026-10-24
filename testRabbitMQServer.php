@@ -4,20 +4,12 @@ require_once('path.inc');
 require_once('get_host_info.inc');
 require_once('rabbitMQLib.inc');
 
-// Persistent DMZ client to prevent creating new channels/queues on every request
-function getDMZClient() {
-	static $dmzClient = null;
-	if ($dmzClient === null) {
-		$dmzClient = new rabbitMQClient("testRabbitMQ.ini", "dmzServer");
-	}
-	return $dmzClient;
-}
-
 function doLogin($username,$password)
 {
 	// lookup username in databas
 	$db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
-	if($db->connect_error) {
+	
+	if($db->connect_error){
 		return ["status" => "error", "message" => "database connection failed"];
 	}
 
@@ -147,7 +139,7 @@ function handleSearchMusic($query, $page = 1) {
 
     //Cache Miss: Forward request to DMZ using persistent client
     echo " [DB] Cache miss for '$query'. Forwarding to DMZ..." . PHP_EOL;
-    $dmzClient = getDMZClient();
+    $dmzClient = new rabbitMQClient("testRabbitMQ.ini", "dmzServer");
     $dmzRes = $dmzClient->send_request([
         'action' => 'search_music',
         'data'   => ['query' => $query, 'page' => $page]
@@ -195,7 +187,7 @@ function handleGetRelease($releaseId) {
 
     // Cache Miss -> Request from DMZ using persistent client
     echo " [DB] Cache miss for Release ID $releaseId. Forwarding to DMZ..." . PHP_EOL;
-    $dmzClient = getDMZClient();
+    $dmzClient = new rabbitMQClient("testRabbitMQ.ini", "dmzServer");
     $dmzRes = $dmzClient->send_request([
         'action' => 'fetch_release_details',
         'data'   => ['discogs_release_id' => $releaseId]
