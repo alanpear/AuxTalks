@@ -81,20 +81,25 @@ function processDMZRequest($request)
 			$formattedResults = [];
 
 			foreach ($rawResults as $item) {
+				$formatStr = 'Standard';
+				if (!empty($item['format'])) {
+					$formatStr = is_array($item['format']) ? implode(', ', $item['format']) : (string)$item['format'];
+				}
+
 				$formattedResults[] = [
-					'discogs_release_id' => $item['id'],
-					'title' => $item['title'],
-					'year' => $item['year'] ?? null,
-					'format' => implode(', ', $item['format'] ?? []),
-					'thumb' => $item['thumb'] ?? ''
+					'discogs_release_id' => $item['id'] ?? 0,
+					'title'              => $item['title'] ?? 'Unknown Title',
+					'year'               => $item['year'] ?? null,
+					'format'             => $formatStr,
+					'thumb'              => $item['thumb'] ?? ($item['cover_image'] ?? '')
 				];
 			}
 
 			return [
-				"status" => "success",
-				"message" => "Search results retrived",
-				"data" => [
-					"page" => $page,
+				"status"  => "success",
+				"message" => "Search results retrieved",
+				"data"    => [
+					"page"    => $page,
 					"results" => $formattedResults
 				]
 			];
