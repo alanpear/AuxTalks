@@ -72,6 +72,7 @@ class rabbitMQServer
       $exchange->setType($this->exchange_type);
 
 		$replyTo = $msg->getReplyTo();
+		echo "[RPC] replying to " . $replyTo . " id " . $msg->getCorrelationId() . PHP_EOL;
 
 			$defaultExchange = new AMQPExchange($channel);
 			$defaultExchange->setName("");
@@ -87,7 +88,7 @@ class rabbitMQServer
 			return;
 			}
 		}
-		catch(Exception $e)
+		catch(Throwable $e)
 		{
 			// ampq throws exception if get fails...
             echo "error: rabbitMQServer: process_message: exception caught: ".$e;
@@ -211,6 +212,7 @@ class rabbitMQClient
       $params['login'] = $this->USER;
       $params['password'] = $this->PASSWORD;
       $params['vhost'] = $this->VHOST;
+	  $params['read_timeout'] = 20;
 
 			$conn = new AMQPConnection($params);
 			$conn->connect();
@@ -240,10 +242,14 @@ class rabbitMQClient
           )
       );
 
-      $this->response_queue[$uid] = "waiting";
+	  $this->response_queue[$uid] = "waiting";
+	  try{
       $this->callback_queue->consume(array($this, 'process_response'));
-
       $response = $this->response_queue[$uid];
+	  } catch(AMQPException $e){
+ 		echo "[RPC] no reply on " . $this->callback_queue->getName() . PHP_EOL;
+        $response = array("status" => "error", "message" => "Timed out waiting for reply");
+	  }
       unset($this->response_queue[$uid]);
 
       try {
