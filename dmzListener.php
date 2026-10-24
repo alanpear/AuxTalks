@@ -9,12 +9,17 @@ define('DISCOGS_KEY', $ini['discogs']['CONSUMER_KEY'] ?? '');
 define('DISCOGS_SECRET', $ini['discogs']['CONSUMER_SECRET'] ?? '');
 define('DISCOGS_USER_AGENT', $ini['discogs']['USER_AGENT'] ?? 'AuxTalksApp/1.0');
 
+echo "[DMZ INIT] Consumer Key: " . (DISCOGS_KEY ? substr(DISCOGS_KEY, 0, 4) . '****' : '[EMPTY/MISSING]') . PHP_EOL;
+echo "[DMZ INIT] User Agent: " . DISCOGS_USER_AGENT . PHP_EOL;
+
 function callDiscogsAPI($endpoint, $params = [])
 {
 	$url = "https://api.discogs.com" . $endpoint;
 	if (!empty($params)) {
 		$url .= '?' . http_build_query($params);
 	}
+
+	echo " [DMZ cURL] Calling URL: " . $url . PHP_EOL;
 
 	$ch = curl_init();
 	curl_setopt_array($ch, [
@@ -33,6 +38,11 @@ function callDiscogsAPI($endpoint, $params = [])
 	$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 	$curlError = curl_error($ch);
 	curl_close($ch);
+
+	echo " [DMZ cURL] Finished cURL. HTTP Code: " . $httpCode . PHP_EOL;
+	if ($curlError) {
+		echo " [DMZ cURL] cURL Error: " . $curlError . PHP_EOL;
+	}
 
 	if ($curlError) {
 	return ["status" => "error", "message" => "cURL network error: " . $curlError];
@@ -94,6 +104,8 @@ function processDMZRequest($request)
 					'thumb'              => $item['thumb'] ?? ($item['cover_image'] ?? '')
 				];
 			}
+
+		echo " [DMZ] Finished formatting. Returning " . count($formattedResults) . " items to rabbitMQServer..." . PHP_EOL;
 
 			return [
 				"status"  => "success",
