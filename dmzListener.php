@@ -1,8 +1,8 @@
 #!/usr/bin/php
 <?php
-require_once('../path.inc');
-require_once('../get_host_info.inc');
-require_once('../rabbitMQLib.inc');
+require_once('path.inc');
+require_once('get_host_info.inc');
+require_once('rabbitMQLib.inc');
 
 $ini = parse_ini_file(__DIR__ . "/testRabbitMQ.ini", true);
 define('DISCOGS_KEY', $ini['discogs']['CONSUMER_KEY'] ?? '');
