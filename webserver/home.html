@@ -35,7 +35,7 @@
 					var res = JSON.parse(request.responseText);
 
 					if (res.status === "success") {
-						document.getElementById("welcome").innerHTML = "welcome back, " + res.user;
+						document.getElementById("welcome").innerHTML = "Welcome back, " + res.user;
 					} else {
 						window.location.href = "login.html";
 					}
@@ -53,11 +53,10 @@
 	<a>Home</a>
 	<button onclick="logout()">Logout</button>
 	<h2 id="welcome">Loading session...</h2>
-	<div>
-		<a href="search.html">Search</a>
-		<a href="profile.html">Profile</a>
+	<button type="button" href="search.html">Search Music</button>
+	<div></div>
+	<button type="button" href="profile.html">My Profile</button>
 
-	</div>
 </body>
 
 </html>
