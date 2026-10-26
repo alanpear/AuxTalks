@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>AuxTalks - My Collection</title>
+</head>
+<script>
+    function checkSession() {
+		var request = new XMLHttpRequest();
+		request.open("POST", "login.php", true);
+		request.setRequestHeader("Content-Type", "application/json");
+
+		request.onreadystatechange = function () {
+			if (request.readyState === 4 && request.status === 200){
+    			var res = JSON.parse(request.responseText);
+
+				if (res.status === "success") {
+					document.getElementById("welcome").innerHTML = "welcome back, " + res.user;
+				} else {
+					window.location.href = "login.html";
+				}
+			}
+		};
+			
+		request.send(JSON.stringify({type: "validate_session"}));
+	}
+
+    window.onload = checkSession;
+</script>
+<body>
+    <nav class="navbar">
+        <a href="home.html">Home</a>
+        <a href="search.html">Search</a>
+        <a href="collection.html">My Collection</a>
+        <a href="profile.html">Profile</a>
+    </nav>
+
+    <div class="container" >
+        <h2>My Saved Collection</h2>
+        <div id="loading">Loading collection...</div>
+        <div id="collectionContainer" ></div>
+    </div>
+
+    <script>
+        fetch('album_actions.php?action=get_collection')
+            .then(r => r.json())
+            .then(res => {
+                document.getElementById('loading').style.display = 'none';
+                const container = document.getElementById('collectionContainer');
+
+                if (res.status === 'success' && res.data && res.data.length > 0) {
+                    container.innerHTML = res.data.map(item => `
+                        <div>
+                            <div>
+                                <h3>
+                                    <a href="album.html?id=${item.discogs_release_id}">${item.title}</a>
+                                </h3>
+                                <p>${item.artist} | <em>${item.format_summary}</em></p>
+                                <small style="color: #888;">Condition: ${item.condition_grade} | Added: ${item.added_at}</small>
+                            </div>
+                            <div>
+                                <button onclick="window.location.href='album.html?id=${item.discogs_release_id}'">View Tracklist</button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    container.innerHTML = '<p>Your collection is empty. Search for albums and click <strong>Add to Collection</strong>!</p>';
+                }
+            })
+            .catch(() => {
+                document.getElementById('loading').innerText = 'Failed to load collection.';
+            });
+    </script>
+</body>
+</html>
