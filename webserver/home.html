@@ -1,27 +1,30 @@
 <!DOCTYPE html>
 <html>
-<head>
-<title>AuxTalks Home</title>
-<link rel="stylesheet" href="styles.css">
-<script>
-	//Function used to log the user out
-	function logout()
-	{
-		console.log("function successfully called");
-		var request = new XMLHttpRequest();
-		request.open("POST", "login.php", true);
-		request.setRequestHeader("Content-Type", "application/json");
 
-		request.onreadystatechange = function () 
-		{
-			if (request.readyState === 4)
-			{
-				window.location.href = "login.html";
-			}
+<head>
+	<title>AuxTalks Home</title>
+	<link rel="stylesheet" href="styles.css">
+
+	<script>
+		document.getElementById('buttonSearch').onclick = () => {
+			window.location.href = 'album.html';
 		};
 
-		request.send(JSON.stringify({type: "logout"}));
-	}
+		//Function used to log the user out
+		function logout() {
+			console.log("function successfully called");
+			var request = new XMLHttpRequest();
+			request.open("POST", "login.php", true);
+			request.setRequestHeader("Content-Type", "application/json");
+
+			request.onreadystatechange = function () {
+				if (request.readyState === 4) {
+					window.location.href = "login.html";
+				}
+			};
+
+			request.send(JSON.stringify({ type: "logout" }));
+		}
 
 		function checkSession() {
 			var request = new XMLHttpRequest();
@@ -29,7 +32,7 @@
 			request.setRequestHeader("Content-Type", "application/json");
 
 			request.onreadystatechange = function () {
-				if (request.readyState === 4 && request.status === 200){
+				if (request.readyState === 4 && request.status === 200) {
 					var res = JSON.parse(request.responseText);
 
 					if (res.status === "success") {
@@ -39,16 +42,21 @@
 					}
 				}
 			};
-			
-			request.send(JSON.stringify({type: "validate_session"}));
+
+			request.send(JSON.stringify({ type: "validate_session" }));
 		}
 
 		window.onload = checkSession;
-</script>
+	</script>
 </head>
+
 <body>
 	<a>Home</a>
 	<button onclick="logout()">Logout</button>
 	<h2 id="welcome">Loading session...</h2>
+	<div>
+		<button id="buttonSearch">Search Album</button>
+	</div>
 </body>
+
 </html>
