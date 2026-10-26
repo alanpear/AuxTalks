@@ -1,24 +1,10 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <meta charset="UTF-8">
     <title>AuxTalks - Profile</title>
     <link rel="stylesheet" href="styles.css">
-    <style>
-        .collection-card {
-            background: white;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            padding: 12px 16px;
-            margin-bottom: 12px;
-            max-width: 700px;
-        }
-        .collection-card h3 { margin: 0 0 4px; }
-        .collection-card p { margin: 4px 0; }
-        .collection-card .meta { color: #666; font-size: 0.9em; }
-        .collection-card .actions { display: flex; gap: 8px; margin-top: 8px; }
-        .collection-card .actions button { width: auto; }
-    </style>
 
     <script>
         function escapeHtml(s) {
@@ -27,31 +13,26 @@
             }[c]));
         }
 
-        function checkSession()
-        {
+        function checkSession() {
             var request = new XMLHttpRequest();
             request.open("POST", "login.php", true);
             request.setRequestHeader("Content-Type", "application/json");
 
-            request.onreadystatechange = function()
-            {
+            request.onreadystatechange = function () {
                 if (request.readyState !== 4) return;
                 if (request.status !== 200) { window.location.href = "login.html"; return; }
                 try {
                     var res = JSON.parse(request.responseText);
-                    if (res.status === "success")
-                    {
+                    if (res.status === "success") {
                         document.getElementById("username").textContent = res.user;
                         document.getElementById("profile").hidden = false;
                         getCollection();
                     }
-                    else
-                    {
+                    else {
                         window.location.href = "login.html";
                     }
                 }
-                catch (error)
-                {
+                catch (error) {
                     console.error(error);
                     window.location.href = "login.html";
                 }
@@ -60,8 +41,7 @@
             request.send(JSON.stringify({ type: "validate_session" }));
         }
 
-        function getCollection()
-        {
+        function getCollection() {
             var collection = document.getElementById("music_collection");
             var summary = document.getElementById("collectionSummary");
 
@@ -76,25 +56,23 @@
                         return;
                     }
 
-                    if (res.status !== "success")
-                    {
+                    if (res.status !== "success") {
                         collection.textContent = res.message || "Unable to load collection.";
                         return;
                     }
 
                     // The database server returns the albums in "data"
                     var albums = res.data || res.albums || [];
-                    if (albums.length === 0)
-                    {
+                    if (albums.length === 0) {
                         summary.textContent = "";
                         collection.innerHTML = '<p>Your music collection is empty. <a href="search.html">Search for albums</a> and click <strong>Add to Collection</strong>!</p>';
                         return;
                     }
-
+                    /*
                     var totalValue = albums.reduce((s, a) => s + (parseFloat(a.lowest_price) || 0), 0);
                     summary.textContent = albums.length + " album" + (albums.length === 1 ? "" : "s") +
-                        (totalValue > 0 ? " Â· est. value from $" + totalValue.toFixed(2) : "");
-
+                        (totalValue > 0 ? " - est. value from $" + totalValue.toFixed(2) : "");
+                    */
                     collection.innerHTML = albums.map(a => {
                         var genres = Array.isArray(a.genres) && a.genres.length ? a.genres.join(", ") : "";
                         return `
@@ -123,8 +101,7 @@
                 });
         }
 
-        function removeFromCollection(releaseId)
-        {
+        function removeFromCollection(releaseId) {
             if (!confirm("Remove this album from your collection?")) return;
             var formData = new FormData();
             formData.append("action", "remove_from_collection");
@@ -160,4 +137,5 @@
         </div>
     </main>
 </body>
+
 </html>
