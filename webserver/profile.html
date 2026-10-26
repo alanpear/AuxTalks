@@ -1,158 +1,163 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>AuxTalks - Profile</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        .collection-card {
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 12px 16px;
+            margin-bottom: 12px;
+            max-width: 700px;
+        }
+        .collection-card h3 { margin: 0 0 4px; }
+        .collection-card p { margin: 4px 0; }
+        .collection-card .meta { color: #666; font-size: 0.9em; }
+        .collection-card .actions { display: flex; gap: 8px; margin-top: 8px; }
+        .collection-card .actions button { width: auto; }
+    </style>
 
     <script>
+        function escapeHtml(s) {
+            return String(s ?? '').replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
 
         function checkSession()
         {
             var request = new XMLHttpRequest();
-
             request.open("POST", "login.php", true);
             request.setRequestHeader("Content-Type", "application/json");
 
             request.onreadystatechange = function()
             {
-                if (request.readyState === 4)
-                {
-                    if (request.status === 200)
+                if (request.readyState !== 4) return;
+                if (request.status !== 200) { window.location.href = "login.html"; return; }
+                try {
+                    var res = JSON.parse(request.responseText);
+                    if (res.status === "success")
                     {
-                        try {
-                            var res = JSON.parse(request.responseText);
-
-                            if (res.status === "success")
-                            {
-                                // Display username
-                                document.getElementById("username").textContent = res.user;
-
-                                // Show profile
-                                document.getElementById("profile").hidden = false;
-
-                                // Retrieve music collection
-                                getCollection();
-                            }
-                            else
-                            {
-                                window.location.href = "login.html";
-                            }
-                        }
-                        catch (error)
-                        {
-                            console.error(error);
-                            window.location.href = "login.html";
-                        }
+                        document.getElementById("username").textContent = res.user;
+                        document.getElementById("profile").hidden = false;
+                        getCollection();
                     }
                     else
                     {
                         window.location.href = "login.html";
                     }
                 }
+                catch (error)
+                {
+                    console.error(error);
+                    window.location.href = "login.html";
+                }
             };
 
-            request.send(JSON.stringify({
-                type: "validate_session"
-            }));
+            request.send(JSON.stringify({ type: "validate_session" }));
         }
-
 
         function getCollection()
         {
-            var request = new XMLHttpRequest();
+            var collection = document.getElementById("music_collection");
+            var summary = document.getElementById("collectionSummary");
 
-            request.open("POST", "profile.php", true);
-
-            request.onreadystatechange = function()
-            {
-                if (request.readyState === 4)
-                {
-                    var collection = document.getElementById("music_collection");
-
-                    if (request.status !== 200)
-                    {
-                        collection.textContent = "Unable to load music collection.";
+            fetch("profile.php", { method: "POST" })
+                .then(r => r.text())
+                .then(text => {
+                    var res;
+                    try { res = JSON.parse(text); }
+                    catch (e) {
+                        console.error("Non-JSON response from profile.php:", text);
+                        collection.textContent = "Invalid server response.";
                         return;
                     }
 
-                    try {
-                        var res = JSON.parse(request.responseText);
-
-                        if (res.status === "success")
-                        {
-                            collection.replaceChildren();
-
-                            if (!Array.isArray(res.albums) || res.albums.length === 0)
-                            {
-                                collection.textContent = "Your music collection is empty.";
-                                return;
-                            }
-
-                            res.albums.forEach(function(album)
-                            {
-                                var albumDiv = document.createElement("div");
-
-                                var title = document.createElement("h3");
-                                title.textContent = album.title || "Unknown Album";
-
-                                var artist = document.createElement("p");
-                                artist.textContent = album.artist || "Unknown Artist";
-
-                                albumDiv.appendChild(title);
-                                albumDiv.appendChild(artist);
-
-                                collection.appendChild(albumDiv);
-                            });
-                        }
-                        else
-                        {
-                            collection.textContent = res.message || "Unable to load collection.";
-                        }
-                    }
-                    catch (error)
+                    if (res.status !== "success")
                     {
-                        console.error(error);
-                        collection.textContent = "Invalid server response.";
+                        collection.textContent = res.message || "Unable to load collection.";
+                        return;
                     }
-                }
-            };
 
-            request.send();
+                    // The database server returns the albums in "data"
+                    var albums = res.data || res.albums || [];
+                    if (albums.length === 0)
+                    {
+                        summary.textContent = "";
+                        collection.innerHTML = '<p>Your music collection is empty. <a href="search.html">Search for albums</a> and click <strong>Add to Collection</strong>!</p>';
+                        return;
+                    }
+
+                    var totalValue = albums.reduce((s, a) => s + (parseFloat(a.lowest_price) || 0), 0);
+                    summary.textContent = albums.length + " album" + (albums.length === 1 ? "" : "s") +
+                        (totalValue > 0 ? " Â· est. value from $" + totalValue.toFixed(2) : "");
+
+                    collection.innerHTML = albums.map(a => {
+                        var genres = Array.isArray(a.genres) && a.genres.length ? a.genres.join(", ") : "";
+                        return `
+                        <div class="collection-card">
+                            <h3><a href="album.html?id=${encodeURIComponent(a.discogs_release_id)}">${escapeHtml(a.title)}</a></h3>
+                            <p>${escapeHtml(a.artist)}${a.release_year ? " (" + escapeHtml(a.release_year) + ")" : ""} | <em>${escapeHtml(a.format_summary)}</em></p>
+                            ${genres ? `<p class="meta">Genres: ${escapeHtml(genres)}</p>` : ""}
+                            <p class="meta">Media: <strong>${escapeHtml(a.condition_grade)}</strong> | Sleeve: <strong>${escapeHtml(a.sleeve_condition)}</strong>
+                                ${a.my_rating ? ` | My rating: <strong>${escapeHtml(a.my_rating)}/5.0</strong>` : ""}</p>
+                            ${a.notes ? `<p class="meta">Notes: ${escapeHtml(a.notes)}</p>` : ""}
+                            <p class="meta">
+                                ${a.lowest_price ? `Lowest price: $${escapeHtml(a.lowest_price)}` : ""}
+                                ${a.marketplace_url ? ` <a href="${escapeHtml(a.marketplace_url)}" target="_blank" rel="noopener">View on Discogs</a>` : ""}
+                            </p>
+                            <p class="meta">Added: ${escapeHtml(a.added_at)}</p>
+                            <div class="actions">
+                                <button onclick="window.location.href='album.html?id=${encodeURIComponent(a.discogs_release_id)}'">View Album</button>
+                                <button onclick="removeFromCollection(${parseInt(a.discogs_release_id, 10)})">Remove</button>
+                            </div>
+                        </div>`;
+                    }).join("");
+                })
+                .catch(err => {
+                    console.error(err);
+                    collection.textContent = "Unable to load music collection.";
+                });
+        }
+
+        function removeFromCollection(releaseId)
+        {
+            if (!confirm("Remove this album from your collection?")) return;
+            var formData = new FormData();
+            formData.append("action", "remove_from_collection");
+            formData.append("discogs_release_id", releaseId);
+            fetch("album_actions.php", { method: "POST", body: formData })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.status !== "success") alert(res.message || "Could not remove album.");
+                    getCollection();
+                })
+                .catch(() => alert("Could not remove album."));
         }
 
         window.onload = checkSession;
-
-        fetch('album_actions.php?action=get_collection')
-            .then(r => r.json())
-            .then(res => {
-                const container = document.getElementById('profileCollectionList');
-                if (container && res.status === 'success' && res.data) {
-                    container.innerHTML = res.data.map(item => `
-                        <li>
-                            <a href="album.html?id=${item.discogs_release_id}">${item.title}</a> - ${item.artist} (${item.format_summary})
-                        </li>
-                    `).join('');
-                }
-            });
-
     </script>
 </head>
 
 <body>
+    <nav class="navbar">
+        <a href="home.html">Home</a>
+        <a href="search.html">Search</a>
+        <a href="collection.html">My Collection</a>
+        <a href="profile.html">Profile</a>
+    </nav>
 
     <main id="profile" hidden>
-
         <h1 id="username">Loading...</h1>
-
         <hr>
-
         <h2>My Music Collection</h2>
-
+        <p id="collectionSummary"></p>
         <div id="music_collection">
             <p>Loading music collection...</p>
         </div>
-
     </main>
-
 </body>
 </html>
