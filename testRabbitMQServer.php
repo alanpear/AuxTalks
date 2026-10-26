@@ -216,6 +216,21 @@ function handleGetRelease($releaseId) {
     $db->close();
     return $dmzRes;
 }
+ function handleRemoveFromCollection ($user, $releaseId){
+    if(empty($user))return["status" => "error", "message => you must be logged in."];
+    $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
+    $stmt = $db->prepare("DELETE FROM user_collection WHERE user = ? AND discogs_release_id = ?");
+    $stmt->bind_param("si", $user, $releaseId);
+    $stmt->execute();
+    $removed = $stmt->affected_rows;
+    $stmt->close();
+    $db->close();
+    if ($removed > 0){
+        return["status" => "success", "message" => "Removed from your collection."];
+    } else { 
+        return["status" => "error", "message" => "That album is not in your collection."]; 
+    }
+}
 
 
 function doLogout($sessionKey){
@@ -410,6 +425,8 @@ function requestProcessor($request)
             $request['track_title'] ?? null,
             $request['physical_format'] ?? 'Vinyl'
         );
+    case "remove_from_collection":
+        return handleRemoveFromCollection($username, (int)($request['discogs_release_id'] ?? 0));
     case "get_album_reviews":
         return handleGetAlbumReviews((int)($request['discogs_release_id'] ?? 0));
   	}
