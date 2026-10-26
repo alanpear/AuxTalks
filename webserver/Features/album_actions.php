@@ -2,16 +2,15 @@
 session_start();
 header('Content-Type: application/json');
 
-require_once('path.inc');
-require_once('get_host_info.inc');
-require_once('rabbitMQLib.inc');
+require_once('../../path.inc');
+require_once('../../get_host_info.inc');
+require_once('../../rabbitMQLib.inc');
 
 $currentUser = $_SESSION['user'] ?? '';
 $action = $_POST['action'] ?? ($_GET['action'] ?? '');
 
-// Allow public view of album details and reviews; authenticate collection/rating actions
-if (empty($currentUser) && in_array($action, ['add_to_collection', 'get_collection', 'add_review'])) {
-    echo json_encode(["status" => "error", "message" => "Please log in first."]);
+if (empty($currentUser) && $action !== 'get_album_details' && $action !== 'get_reviews') {
+    echo json_encode(["status" => "error", "message" => "Authentication required."]);
     exit();
 }
 
@@ -29,12 +28,11 @@ switch ($action) {
 
     case 'add_to_collection':
         $res = $client->send_request([
-            'type'               => 'add_to_collection',
-            'user'               => $currentUser,
+            'type' => 'add_to_collection',
+            'user' => $currentUser,
             'discogs_release_id' => (int)($_POST['discogs_release_id'] ?? 0),
-            'notes'              => $_POST['notes'] ?? '',
-            'condition_grade'    => $_POST['condition_grade'] ?? 'VG+',
-            'sleeve_condition'   => $_POST['sleeve_condition'] ?? 'VG+'
+            'title' => $_POST['title'] ?? '',
+            'artist' => $_POST['artist'] ?? ''
         ]);
         echo json_encode($res);
         break;
@@ -47,15 +45,22 @@ switch ($action) {
         echo json_encode($res);
         break;
 
-    case 'add_review':
+    case 'rate_album':
         $res = $client->send_request([
-            'type'               => 'add_review',
-            'user'               => $currentUser,
+            'type' => 'rate_album',
+            'user' => $currentUser,
             'discogs_release_id' => (int)($_POST['discogs_release_id'] ?? 0),
-            'rating'             => (float)($_POST['rating'] ?? 0.0),
-            'review_text'        => !empty($_POST['review_text']) ? $_POST['review_text'] : null,
-            'item_type'          => 'album',
-            'physical_format'    => $_POST['physical_format'] ?? 'Vinyl'
+            'rating' => (int)($_POST['rating'] ?? 0)
+        ]);
+        echo json_encode($res);
+        break;
+
+    case 'review_album':
+        $res = $client->send_request([
+            'type' => 'review_album',
+            'user' => $currentUser,
+            'discogs_release_id' => (int)($_POST['discogs_release_id'] ?? 0),
+            'review_text' => $_POST['review_text'] ?? ''
         ]);
         echo json_encode($res);
         break;
@@ -70,7 +75,7 @@ switch ($action) {
         break;
 
     default:
-        echo json_encode(["status" => "error", "message" => "Invalid action."]);
+        echo json_encode(["status" => "error", "message" => "Unknown action."]);
         break;
 }
 ?>
