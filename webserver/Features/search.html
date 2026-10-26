@@ -79,28 +79,29 @@
                         message.textContent = "";
 
                         albums.forEach(function(album) {
-                            var div = document.createElement("div");
-                            div.className = "album-item";
+                            var releaseId = album.discogs_release_id || album.id || 0;
+                            var coverImg = album.thumb || album.cover_image || "https://via.placeholder.com/100x100?text=No+Cover";
+                            var year = album.year || album.release_year || "Unknown Year";
+                            var format = album.format || album.format_summary || "Standard";
 
-                            if (album.cover_image) {
-                                var image = document.createElement("img");
-                                image.src = album.cover_image;
-                                image.alt = album.title;
-                                div.appendChild(image);
-                            }
+                            var card = document.createElement("div");
+                            card.className = "album-item";
 
-                            var infoDiv = document.createElement("div");
-                            var title = document.createElement("h3");
-                            title.textContent = album.title;
-                            infoDiv.appendChild(title);
+                            card.innerHTML = 
+                                '<img src="' + coverImg + '" alt="cover" />' +
+                                '<div class="result-info">' +
+                                    '<h3><a href="album.html?id=' + releaseId + '">' + (album.title || "Unknown Title") + '</a></h3>' +
+                                    '<p>Year: ' + year + '</p>' +
+                                    '<p>Format: ' + format + '</p>' +
+                                '</div>' +
+                                '<div>' +
+                                    '<button class="btn-view" onclick="window.location.href=\'album.html?id=' + releaseId + '\'">View Album</button>' +
+                                '</div>';
 
-                            var meta = document.createElement("p");
-                            meta.textContent = (album.year || album.release_year || "Unknown Year") + " • " + (album.format || album.format_summary || "Standard");
-                            infoDiv.appendChild(meta);
-
-                            div.appendChild(infoDiv);
-                            results.appendChild(div);
+                            results.appendChild(card);
                         });
+
+
 
                     } catch (error) {
                         console.error("Parse or render error:", error, request.responseText);
