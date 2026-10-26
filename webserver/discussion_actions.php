@@ -1,6 +1,6 @@
 <?php
 session_start();
-ini_set('display_errors'. 0);
+ini_set('display_errors', 0);
 header('Content-Type: application/json');
 
 require_once('path.inc');
@@ -25,12 +25,26 @@ try {
 
         case 'get_threads':
             $res = $client->send_request([
+                'type' => 'get_threads',
+                'category_id' => (int)($_GET['category_id'] ?? 0)
+            ]);
+            break;
+
+        case 'create_thread':
+            $res = $client->send_request([
                 'type' => 'create_thread',
                 'user' => $currentUser,
                 'category_id' => (int)($_POST['category_id'] ?? 0),
                 'title' => $_POST['title'] ?? '',
                 'body' => $_POST['body'] ?? '',
                 'discogs_release_id' => (int)($_POST['discogs_release_id'] ?? 0)
+            ]);
+            break;
+
+        case 'get_thread':
+            $res = $client->send_request([
+                'type' => 'get_thread',
+                'thread_id' => (int)($_GET['id'] ?? 0)
             ]);
             break;
 
@@ -54,6 +68,6 @@ try {
     echo json_encode($res);
 
 } catch (Throwable $e) {
-    echo json_encode(["Status" => "error", "message" => "Server.error:" . $e->getMessage()]);
+    echo json_encode(["status" => "error", "message" => "Server.error:" . $e->getMessage()]);
 }
 ?>
