@@ -1,38 +1,157 @@
 <html>
-    <head>
-        <title>AuxTalks - Threads</title>
-        <link rel="stylesheet" href="styles.css">
-    </head>
-    <body>
-        <!-- temp nav -->
-        <nav>
-            <a href="home.html">Home</a>
-            <a href="profile.html">Profile</a>
-            <a href="search.html">Search</a>
-        </nav>
 
-        <h1>Threads</h1>
-        <div class="page">
-            <p><a href="discussions.html">Discussions</a></p>
-            <div id="loadingStatus">Loading...</div>
+<head>
+    <title>AuxTalks - Threads</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
 
-            <div id="threadView" style="display:none;">
-                <h1 id="threadTitle"></h1>
-                <p class="meta" id="threadMeta"></p>
-                <p class="meta" id="threadAlbum"></p>
+<body>
+    <!-- temp nav -->
+    <nav>
+        <a href="home.html">Home</a>
+        <a href="profile.html">Profile</a>
+        <a href="search.html">Search</a>
+    </nav>
 
-                <div id="posts"></div>
+    <h1>Threads</h1>
+    <div class="page">
+        <p><a href="discussions.html">Discussions</a></p>
+        <div id="loadingStatus">Loading...</div>
 
-                <form id="replyForm" class="reply-form">
-                    <h3>Post a Reply</h3>
-                    <p id="replyingTo"></p>
-                    <textarea id="replyBody" placeholder="Write your reply here..."></textarea>
-                    <button type="submit">Post Reply</button>
-                    <p id="replyStatus"></p>
-                </form>
-            </div>
+        <div id="threadView" style="display:none;">
+            <h1 id="threadTitle"></h1>
+            <p class="meta" id="threadMeta"></p>
+            <p class="meta" id="threadAlbum"></p>
+
+            <div id="posts"></div>
+
+            <form id="replyForm" class="reply-form">
+                <h3>Post a Reply</h3>
+                <p id="replyingTo"></p>
+                <textarea id="replyBody" placeholder="Write your reply here..."></textarea>
+                <button type="submit">Post Reply</button>
+                <p id="replyStatus"></p>
+            </form>
         </div>
+    </div>
 
-        
-    </body>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const threadId = parseInt(params.get('id') || '0', 10) || 0;
+        let postsByID = {};
+
+        function escapeHtml(s) {
+            return String(s ?? '').replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[C]));
+        }
+
+        function loadThread(scrollToEnd) {
+            fetch(`discussion_actions.php?action=get_thread&id=${threadID}`)
+                .then(r => r.json())
+                .then(res => {
+                    if (res.status !== 'success' || ~res.data) {
+                        document.getElementById('loadingStatus').innerText = res.message || 'Discussion not found. :(';
+                        return;
+                    }
+                    const t = res.data;
+                    document.title = 'AuxTalks - ' + t.title;
+                    document.getElementById('loadingStatus').style.display = 'none';
+                    document.getElementById('threadView').style.display = 'block';
+                    document.getElementById('threadTitle').innerText = t.title;
+                    document.getElementById('threadMeta').innerHTML = `${escapeHtml(t.category_name)} $imddot; started by ${escapeHtml(t.user)} on ${escapeHtml(t.created_at)}`;
+                    document.getElementById('threadAlbum').innerHTML = t.discogs_release_id ? `Album: <a href="album.html?id=${discogs_release_id}">${escapeHtml(t.album_title || 'View Album')}</a>` : '';
+
+                    const posts = t.posts || [];
+                    postsById = {};
+                    posts.forEach(p => { postsById[p.id] = p; });
+
+
+                    document.getElementById('posts').innerHTML = posts.map((p, i) => `
+                        <div class="post${i === 0 ? ' original' : ''}" id="post-${p.id}">
+                            <b>@${escapeHtml(p.user)}</b>
+                            <span class="meta">${escapeHtml(p.created_at)}</span>
+                            ${p.parent_post_id ? `<div class="reply-to">&#8627; replying to <a href="#post-${p.parent_post_id}">@${escapeHtml(p.parent_user || 'post')}</a></div>` : ''}
+                            <div class="body">${escapeHtml(p.body)}</div>
+                            <button onclick="replyTo(${p.id})">Reply</button>
+                        </div>
+                    `).join('') || '<p>No posts yet.</p>';
+
+                    if (scrollToEnd) {
+                        document.getElementById('replyForm').scrollIntoView({ behavior: 'smooth' });
+                    }
+                })
+                .catch(() => {
+                    document.getElementById('loadingStatus').innerText = 'Failed to load discussion.';
+                });
+        }
+
+        function replyTo(postId) {
+            const p = postsById[postId];
+            if (!p) return;
+            replyParentId = postId;
+            document.getElementById('replyingTo').innerHTML =
+                `Replying to <b>@${escapeHtml(p.user)}</b><button type="button" onclick="clearReplyTo()">Cancel</button>`;
+            document.getElementById('replyForm').scrollIntoView({ behavior: 'smooth' });
+            document.getElementById('replyBody').focus({ preventScroll: true });
+        }
+
+        function clearReplyTo() {
+            replyParentId = 0;
+            document.getElementById('replyingTo').innerHTML = '';
+        }
+
+        document.getElementById('replyForm').onsubmit = (e) => {
+            e.preventDefault();
+            const status = document.getElementById('replyStatus');
+            const formData = new FormData();
+            formData.append('action', 'add_post');
+            formData.append('thread_id', threadId);
+            formData.append('body', document.getElementById('replyBody').value);
+            if (replyParentId) formData.append('parent_post_id', replyParentId);
+
+            fetch('discussion_actions.php', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(res => {
+                    status.style.color = res.status === 'success' ? 'green' : 'red';
+                    status.innerText = res.message || (res.status === 'success' ? 'Reply posted!' : 'Could not post reply.');
+                    if (res.status === 'success') {
+                        document.getElementById('replyBody').value = '';
+                        clearReplyTo();
+                        loadThread(true);
+                    }
+                })
+                .catch(() => {
+                    status.style.color = 'red';
+                    status.innerText = 'Could not post reply (server error).';
+                });
+        };
+
+        function checkSession() {
+            var request = new XMLHttpRequest();
+            request.open("POST", "login.php", true);
+            request.setRequestHeader("Content-Type", "application/json");
+            request.onreadystatechange = function () {
+                if (request.readyState === 4 && request.status === 200) {
+                    try {
+                        var res = JSON.parse(request.responseText);
+                        if (res.status !== "success") window.location.href = "login.html";
+                    } catch (e) { /* ignore bad response */ }
+                }
+            };
+            request.send(JSON.stringify({ type: "validate_session" }));
+        }
+
+        window.onload = () => {
+            checkSession();
+            if (!threadId) {
+                document.getElementById('loadingStatus').innerText = 'Error: No discussion ID provided.';
+                return;
+            }
+            loadThread(false);
+        };
+
+    </script>
+</body>
+
 </html>
