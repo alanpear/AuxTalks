@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>AuxTalks - Discussions</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .page { max-width: 800px; margin: 0 auto; padding: 0 12px; }
+        .category-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; }
+        .category-tabs button { width: auto; padding: 6px 12px; cursor: pointer; }
+        .category-tabs button.active { background: #333; color: white; border-color: #333; }
+        .thread-card {
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 10px 14px;
+            margin-bottom: 10px;
+        }
+        .thread-card h3 { margin: 0 0 4px; }
+        .thread-card .meta { color: #666; font-size: 0.9em; margin: 2px 0; }
+        .new-thread {
+            width: auto;
+            margin: 12px 0 20px;
+            display: none;
+        }
+        .new-thread label { display: block; margin-top: 8px; font-weight: bold; }
+        .new-thread select,
+        .new-thread textarea { width: 100%; padding: 6px; box-sizing: border-box; margin-top: 4px; }
+        .new-thread button { margin-top: 10px; }
+        #toggleNew { width: auto; padding: 8px 16px; }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar">
+        <a href="home.html">Home</a>
+        <a href="search.html">Search</a>
+        <a href="collection.html">My Collection</a>
+        <a href="discussions.html">Discussions</a>
+        <a href="profile.html">Profile</a>
+    </nav>
+
+    <div class="page">
+        <h1>Discussions</h1>
+
+        <button id="toggleNew">+ Start a Discussion</button>
+
+        <form id="newThreadForm" class="new-thread">
+            <h3>Start a Discussion</h3>
+            <p id="albumLink" class="meta"></p>
+
+            <label for="newCategory">Category:</label>
+            <select id="newCategory" required></select>
+
+            <label for="newTitle">Title:</label>
+            <input type="text" id="newTitle" maxlength="255" required placeholder="What do you want to talk about?">
+
+            <label for="newBody">First post:</label>
+            <textarea id="newBody" rows="5" required placeholder="Share your thoughts..."></textarea>
+
+            <button type="submit">Post Discussion</button>
+            <p id="newStatus"></p>
+        </form>
+
+        <div id="categoryTabs" class="category-tabs"></div>
+        <div id="threadList">Loading discussions...</div>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        // Optional: discussions.html?album=<release id>&title=<album title> pre-links a new thread to an album
+        const albumId = parseInt(params.get('album') || '0', 10) || 0;
+        const albumTitle = params.get('title') || '';
+        let currentCategory = parseInt(params.get('category') || '0', 10) || 0;
+
+        function escapeHtml(s) {
+            return String(s ?? '').replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
+
+        function loadCategories() {
+            fetch('discussion_actions.php?action=get_categories')
+                .then(r => r.json())
+                .then(res => {
+                    const cats = res.status === 'success' ? (res.data || []) : [];
+                    const tabs = document.getElementById('categoryTabs');
+                    const select = document.getElementById('newCategory');
+
+                    tabs.innerHTML = `<button data-id="0">All</button>` + cats.map(c =>
+                        `<button data-id="${c.id}" title="${escapeHtml(c.description)}">${escapeHtml(c.name)} (${c.thread_count})</button>`
+                    ).join('');
+                    tabs.querySelectorAll('button').forEach(b => {
+                        b.classList.toggle('active', parseInt(b.dataset.id, 10) === currentCategory);
+                        b.onclick = () => {
+                            currentCategory = parseInt(b.dataset.id, 10);
+                            tabs.querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
+                            loadThreads();
+                        };
+                    });
+
+                    select.innerHTML = cats.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+                    // Album-linked threads default to "Album Talk" when it exists
+                    if (albumId) {
+                        const albumCat = cats.find(c => c.slug === 'album-talk');
+                        if (albumCat) select.value = albumCat.id;
+                    } else if (currentCategory) {
+                        select.value = currentCategory;
+                    }
+                })
+                .catch(() => { document.getElementById('categoryTabs').innerText = 'Could not load categories.'; });
+        }
+
+        function loadThreads() {
+            const list = document.getElementById('threadList');
+            list.innerText = 'Loading discussions...';
+            fetch(`discussion_actions.php?action=get_threads&category_id=${currentCategory}`)
+                .then(r => r.json())
+                .then(res => {
+                    const threads = res.status === 'success' ? (res.data || []) : [];
+                    if (res.status !== 'success') {
+                        list.innerText = res.message || 'Could not load discussions.';
+                        return;
+                    }
+                    if (threads.length === 0) {
+                        list.innerHTML = '<p>No discussions yet. Be the first to start one!</p>';
+                        return;
+                    }
+                    list.innerHTML = threads.map(t => {
+                        const replies = Math.max(0, parseInt(t.post_count, 10) - 1);
+                        return `
+                        <div class="thread-card">
+                            <h3><a href="thread.html?id=${t.id}">${escapeHtml(t.title)}</a></h3>
+                            <p class="meta">
+                                ${escapeHtml(t.category_name)} &middot; started by <strong>@${escapeHtml(t.user)}</strong> on ${escapeHtml(t.created_at)}
+                            </p>
+                            ${t.discogs_release_id ? `<p class="meta">Album: <a href="album.html?id=${t.discogs_release_id}">${escapeHtml(t.album_title || 'View album')}</a></p>` : ''}
+                            <p class="meta">${replies} repl${replies === 1 ? 'y' : 'ies'} &middot; last activity ${escapeHtml(t.last_activity)}</p>
+                        </div>`;
+                    }).join('');
+                })
+                .catch(() => { list.innerText = 'Could not load discussions.'; });
+        }
+
+        document.getElementById('toggleNew').onclick = () => {
+            const form = document.getElementById('newThreadForm');
+            const show = form.style.display !== 'block';
+            form.style.display = show ? 'block' : 'none';
+            if (show) document.getElementById('newTitle').focus();
+        };
+
+        document.getElementById('newThreadForm').onsubmit = (e) => {
+            e.preventDefault();
+            const status = document.getElementById('newStatus');
+            const formData = new FormData();
+            formData.append('action', 'create_thread');
+            formData.append('category_id', document.getElementById('newCategory').value);
+            formData.append('title', document.getElementById('newTitle').value);
+            formData.append('body', document.getElementById('newBody').value);
+            if (albumId) formData.append('discogs_release_id', albumId);
+
+            fetch('discussion_actions.php', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.status === 'success' && res.thread_id) {
+                        window.location.href = `thread.html?id=${res.thread_id}`;
+                    } else {
+                        status.style.color = 'red';
+                        status.innerText = res.message || 'Could not create discussion.';
+                    }
+                })
+                .catch(() => {
+                    status.style.color = 'red';
+                    status.innerText = 'Could not create discussion (server error).';
+                });
+        };
+
+        function checkSession() {
+            var request = new XMLHttpRequest();
+            request.open("POST", "login.php", true);
+            request.setRequestHeader("Content-Type", "application/json");
+            request.onreadystatechange = function () {
+                if (request.readyState === 4 && request.status === 200) {
+                    try {
+                        var res = JSON.parse(request.responseText);
+                        if (res.status !== "success") window.location.href = "login.html";
+                    } catch (e) { /* ignore bad response */ }
+                }
+            };
+            request.send(JSON.stringify({ type: "validate_session" }));
+        }
+
+        window.onload = () => {
+            checkSession();
+            if (albumId) {
+                document.getElementById('albumLink').innerHTML =
+                    `About album: <a href="album.html?id=${albumId}">${escapeHtml(albumTitle || 'this album')}</a>`;
+                document.getElementById('newThreadForm').style.display = 'block';
+            }
+            loadCategories();
+            loadThreads();
+        };
+    </script>
+</body>
+</html>
