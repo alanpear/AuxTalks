@@ -55,6 +55,14 @@
             echo json_encode($res);
             break;
 
+            case 'get_suggestion':
+                $res = $client->send_request([
+                    'type' => 'get_suggestion',
+                    'user' => $currentUser
+                ]);
+                echo json_encode($res);
+                break;
+
         case 'add_review':
             $res = $client->send_request([
                 'type' => 'add_review',
