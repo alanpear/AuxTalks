@@ -6,8 +6,14 @@
 	<link rel="stylesheet" href="styles.css">
 
 	<script>
+		//Search Button
 		document.getElementById('buttonSearch').onclick = () => {
 			window.location.href = 'album.html';
+		};
+
+		//Profile Button
+		document.getElementById('buttonProfile').onclick = () => {
+			window.location.href = 'profile.html';
 		};
 
 		//Function used to log the user out
@@ -54,15 +60,11 @@
 	<a>Home</a>
 	<button onclick="logout()">Logout</button>
 	<h2 id="welcome">Loading session...</h2>
-<<<<<<< HEAD
 	<div>
 		<button id="buttonSearch">Search Album</button>
+		<button id="buttonProfile">Profile</button>
+
 	</div>
-=======
-	<a href="search.html">Search</a>
-	<div></div>
-	<a href="profile.html">Profile</a>
->>>>>>> 184baac (modified files)
 </body>
 
 </html>
