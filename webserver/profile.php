@@ -25,7 +25,8 @@ if (!isset($_SESSION["sessionKey"]))
 // Create RabbitMQ request
 $request = [
     "type" => "get_collection",
-    "sessionKey" => $_SESSION["sessionKey"]
+    "sessionKey" => $_SESSION["sessionKey"],
+    "user" => $_SESSION["user"] ?? ""
 ];
 
 try
