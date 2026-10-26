@@ -176,10 +176,13 @@ function handleGetRelease($releaseId) {
     $res = $stmt->get_result();
 
     if ($row = $res->fetch_assoc()) {
-        
-        if (!empty($row['tracklist'])) {
-            $row['genres'] = json_decode($row['genres'], true);
-            $row['tracklist'] = json_decode($row['tracklist'], true);
+        // Only trust the cache if the stored tracklist decodes to a real, non-empty list.
+        // Rows cached by search have no tracklist, and a too-small column truncates the JSON
+        // (json_decode then returns null) -- in both cases fall through and refetch from the DMZ.
+        $cachedTracks = !empty($row['tracklist']) ? json_decode($row['tracklist'], true) : null;
+        if (is_array($cachedTracks) && count($cachedTracks) > 0) {
+            $row['genres'] = json_decode($row['genres'] ?? '[]', true) ?? [];
+            $row['tracklist'] = array_values($cachedTracks);
             $stmt->close();
             $db->close();
             return ["status" => "success", "source" => "database_cache", "data" => $row];
@@ -198,10 +201,17 @@ function handleGetRelease($releaseId) {
         $d = $dmzRes['data'];
         $genres = json_encode($d['genres'] ?? []);
         $tracks = json_encode($d['tracklist'] ?? []);
-        $ins = $db->prepare("INSERT INTO cached_releases (discogs_release_id, title, artist, release_year, format_summary, genres, tracklist, lowest_price, marketplace_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE genres = VALUES(genres), tracklist = VALUES(tracklist), lowest_price = VALUES(lowest_price)");
-        $ins->bind_param("ississsds", $d['discogs_release_id'], $d['title'], $d['artist'], $d['release_year'], $d['format_summary'], $genres, $tracks, $d['lowest_price'], $d['marketplace_url']);
-        $ins->execute();
-        $ins->close();
+        // Also overwrite artist/format: search caches the search text as the "artist".
+        $ins = $db->prepare("INSERT INTO cached_releases (discogs_release_id, title, artist, release_year, format_summary, genres, tracklist, lowest_price, marketplace_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE artist = VALUES(artist), format_summary = VALUES(format_summary), genres = VALUES(genres), tracklist = VALUES(tracklist), lowest_price = VALUES(lowest_price)");
+        if ($ins) {
+            $ins->bind_param("ississsds", $d['discogs_release_id'], $d['title'], $d['artist'], $d['release_year'], $d['format_summary'], $genres, $tracks, $d['lowest_price'], $d['marketplace_url']);
+            if (!$ins->execute()) {
+                echo " [DB] Failed to cache release $releaseId: " . $ins->error . PHP_EOL;
+            }
+            $ins->close();
+        } else {
+            echo " [DB] Cache insert prepare failed: " . $db->error . PHP_EOL;
+        }
     }
     $db->close();
     return $dmzRes;
