@@ -40,12 +40,12 @@
 
     <script>
         const urlParams =  new URLSearchParams(window.location.search);
-        const releaseID = urlParams.get('id');
+        const releaseId = urlParams.get('id');
 
-        if (!releaseID) {
+        if (!releaseId) {
             document.getElementById('loadingStatus').innerText = 'Error: No album ID provided.';
         } else {
-            fetch(`album_actions.php?actionget_album_details&id=${releaseID}`)
+            fetch(`album_actions.php?action=get_album_details&id=${releaseId}`)
                 .then(r = r.json())
                 .then(res => {
                     if (res.status === 'success' && res.data){
@@ -58,10 +58,10 @@
                         document.getElementById('format').innerText = album.format_summary || 'Standard';
 
                         document.getElementById('buttonRate').onclick = () => {
-                            window.location.href = 'rate.html?id={releaseID}&title=${encodeURIComponent(album.title)}';
+                            window.location.href = 'rate.html?id={releaseId}&title=${encodeURIComponent(album.title)}';
                         };
                         document.getElementById('buttonReview').onclick = () => {
-                            window.location.href = 'review.html?id={releaseID}&title=${encodeURIComponent(album.title)}';
+                            window.location.href = 'review.html?id={releaseId}&title=${encodeURIComponent(album.title)}';
                         };
 
                         // Table
@@ -92,7 +92,7 @@
         document.getElementById('buttonCollection').onclick = () => {
             const formData = new FormData();
             formData.append('action', 'add_to_collection');
-            formData.append('discogs_release_id', releaseID);
+            formData.append('discogs_release_id', releaseId);
 
             fetchData('album_actions.php', { method: 'POST', body: formdata })
                 .then(r => r.json())
