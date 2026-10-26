@@ -176,9 +176,6 @@ function handleGetRelease($releaseId) {
     $res = $stmt->get_result();
 
     if ($row = $res->fetch_assoc()) {
-        // Only trust the cache if the stored tracklist decodes to a real, non-empty list.
-        // Rows cached by search have no tracklist, and a too-small column truncates the JSON
-        // (json_decode then returns null) -- in both cases fall through and refetch from the DMZ.
         $cachedTracks = !empty($row['tracklist']) ? json_decode($row['tracklist'], true) : null;
         if (is_array($cachedTracks) && count($cachedTracks) > 0) {
             $row['genres'] = json_decode($row['genres'] ?? '[]', true) ?? [];
@@ -217,8 +214,9 @@ function handleGetRelease($releaseId) {
     return $dmzRes;
 }
  function handleRemoveFromCollection ($user, $releaseId){
-    if(empty($user))return["status" => "error", "message => you must be logged in."];
+    if(empty($user))return["status" => "error", "message" => "You must be logged in."];
     $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
+    if ($db->connect_error) return ["status" => "error", "message" => "Database offline"];
     $stmt = $db->prepare("DELETE FROM user_collection WHERE user = ? AND discogs_release_id = ?");
     $stmt->bind_param("si", $user, $releaseId);
     $stmt->execute();
@@ -582,6 +580,27 @@ function requestProcessor($request)
         );
     case "remove_from_collection":
         return handleRemoveFromCollection($username, (int)($request['discogs_release_id'] ?? 0));
+    case "get_forum_categories":
+        return handleGetForumCategories();
+    case "get_threads":
+        return handleGetThreads((int)($request['category_id'] ?? 0));
+    case "create_thread":
+        return handleCreateThread(
+            $username,
+            (int)($request['category_id'] ?? 0),
+            $request['title'] ?? '',
+            $request['body'] ?? '',
+            (int)($request['discogs_release_id'] ?? 0)
+        );
+    case "get_thread":
+        return handleGetThread((int)($request['thread_id'] ?? 0));
+    case "add_post":
+        return handleAddPost(
+            $username,
+            (int)($request['thread_id'] ?? 0),
+            $request['body'] ?? '',
+            (int)($request['parent_post_id'] ?? 0)
+        );
     case "get_album_reviews":
         return handleGetAlbumReviews((int)($request['discogs_release_id'] ?? 0));
   	}
