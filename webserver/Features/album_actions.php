@@ -2,9 +2,9 @@
 session_start();
 header('Content-Type: application/json');
 
-require_once('../../path.inc');
-require_once('../../get_host_info.inc');
-require_once('../../rabbitMQLib.inc');
+require_once('path.inc');
+require_once('get_host_info.inc');
+require_once('rabbitMQLib.inc');
 
 $currentUser = $_SESSION['user'] ?? '';
 $action = $_POST['action'] ?? ($_GET['action'] ?? '');
