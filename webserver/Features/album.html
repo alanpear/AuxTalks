@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-
+<html>
 <head>
     <title>AuxTalks - View Album</title>
     <link rel="stylesheet" href="../styles.css">
@@ -12,7 +12,7 @@
         <div id='loadingStatus'>Loading album details...</div>
         <div id="albumView" style="display: none;">
             <h1 id="title"></h1>
-            <h3 id="artist">    
+            <h3 id="artist"></h3>    
                 <p>Year:<span id="year"></span> | <strong>Format:</strong> <span id="format"></span></span></p>
 
                 <div>
@@ -22,8 +22,9 @@
                 </div>
 
                 <!-- Collection Message Here -->
+                <p id="collectionMsg"></p>
 
-                <h2>Trackist</h2>
+                <h2>Tracklist</h2>
                 <table>
                     <thead>
                         <tr>
@@ -46,11 +47,12 @@
             document.getElementById('loadingStatus').innerText = 'Error: No album ID provided.';
         } else {
             fetch(`album_actions.php?action=get_album_details&id=${releaseId}`)
-                .then(r = r.json())
+                .then(r => r.json())
                 .then(res => {
                     if (res.status === 'success' && res.data){
+                        const album = res.data;
                         document.getElementById('loadingStatus').style.display = 'none';
-                        document.getElementById('albuView').style.display = 'block';
+                        document.getElementById('albumView').style.display = 'block';
 
                         document.getElementById('title').innerText = album.title || 'Unknown Title';
                         document.getElementById('artist').innerText = album.artist || 'Unknown Artist';
@@ -58,10 +60,10 @@
                         document.getElementById('format').innerText = album.format_summary || 'Standard';
 
                         document.getElementById('buttonRate').onclick = () => {
-                            window.location.href = 'rate.html?id={releaseId}&title=${encodeURIComponent(album.title)}';
+                            window.location.href = `rate.html?id=${releaseId}&title=${encodeURIComponent(album.title)}`;
                         };
                         document.getElementById('buttonReview').onclick = () => {
-                            window.location.href = 'review.html?id={releaseId}&title=${encodeURIComponent(album.title)}';
+                            window.location.href = `review.html?id=${releaseId}&title=${encodeURIComponent(album.title)}`;
                         };
 
                         // Table
@@ -74,7 +76,7 @@
                         } else {
                             tracks.forEach(t => {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td>${t.oisutuib || '-'}</td><td>${t.title}</td><td>${t.duration || 'N/A'}</td>`
+                                tr.innerHTML = `<td>${t.position || '-'}</td><td>${t.title}</td><td>${t.duration || 'N/A'}</td>`
 
                                 tbody.appendChild(tr);
                             });
@@ -94,7 +96,7 @@
             formData.append('action', 'add_to_collection');
             formData.append('discogs_release_id', releaseId);
 
-            fetchData('album_actions.php', { method: 'POST', body: formdata })
+            fetch('album_actions.php', { method: 'POST', body: formData })
                 .then(r => r.json())
                 .then(res => {
                     const msg = document.getElementById('collectionMsg');
@@ -104,3 +106,4 @@
         };
     </script>
 </body>
+</html>
