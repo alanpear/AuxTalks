@@ -45,22 +45,15 @@ switch ($action) {
         echo json_encode($res);
         break;
 
-    case 'rate_album':
+    case 'add_review':
         $res = $client->send_request([
-            'type' => 'rate_album',
+            'type' => 'add_review',
             'user' => $currentUser,
             'discogs_release_id' => (int)($_POST['discogs_release_id'] ?? 0),
-            'rating' => (int)($_POST['rating'] ?? 0)
-        ]);
-        echo json_encode($res);
-        break;
-
-    case 'review_album':
-        $res = $client->send_request([
-            'type' => 'review_album',
-            'user' => $currentUser,
-            'discogs_release_id' => (int)($_POST['discogs_release_id'] ?? 0),
-            'review_text' => $_POST['review_text'] ?? ''
+            'rating' => (float)($_POST['rating'] ?? 0),
+            'review_text' => $_POST['review_text'] ?? '',
+            'physical_format' => $_POST['physical_format'] ?? 'Vinyl',
+            'item_type' => 'album'
         ]);
         echo json_encode($res);
         break;
