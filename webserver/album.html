@@ -33,7 +33,7 @@
                         </tr>
                     </thead>
                     <tbody id="tracklistTable"></tbody>
-                </table
+                </table>
         </div>
     </div>
 
@@ -65,9 +65,6 @@
                         document.getElementById('year').innerText = album.release_year || 'N/A';
                         document.getElementById('format').innerText = album.format_summary || 'Standard';
 
-                        document.getElementById('buttonRate').onclick = () => {
-                            window.location.href = `rate.html?id=${releaseId}&title=${encodeURIComponent(album.title)}`;
-                        };
                         document.getElementById('buttonReview').onclick = () => {
                             window.location.href = `review.html?id=${releaseId}&title=${encodeURIComponent(album.title)}`;
                         };
