@@ -37,12 +37,39 @@
 
         <div id="albumView" style="display: none;">
             <h1 id="title"></h1>
-            <h3 id="artist"></h3>
-            <p><strong>Year:</strong> <span id="year"></span> | <strong>Format:</strong> <span id="format"></span></p>
+            <h3 id="artist"></h3>    
+                <p>Year:<span id="year"></span> | <strong>Format:</strong> <span id="format"></span></span></p>
+                <div class="collection-box">
+                    <h3>Add to My Collection</h3>
+                    <label for="conditionGrade">Media Condition:</label>
+                    <select id="conditionGrade">
+                        <option value="M">Mint</option>
+                        <option value="NM">Near Mint</option>
+                        <option value="VG+">Very Good +</option>
+                        <option value="VG">Very Good</option>
+                        <option value="G+">Good +</option>
+                        <option value="G">Good</option>
+                        <option value="F">Fair</option>
+                        <option value="P">Poor</option>
+                    </select>
 
-            <div>
-                <button id="buttonCollection">Add to Collection</button>
-            </div>
+                    <label for="sleeveCondition">Sleeve condition:</label>
+                    <select id="sleeveCondition">
+                         <option value="M">Mint</option>
+                        <option value="NM">Near Mint</option>
+                        <option value="VG+">Very Good +</option>
+                        <option value="VG">Very Good</option>
+                        <option value="G+">Good +</option>
+                        <option value="G">Good</option>
+                        <option value="F">Fair</option>
+                        <option value="P">Poor</option>
+                    </select>
+                    
+                    <label for="collectionNotes">Notes:</label>
+                    <input type="text" id="collectionNotes" maxLength="255" placeholder="e.g. first pressing, signed copy">
+                    
+                    <button id="buttonCollection">Add to Collection</button>
+                </div>
 
             <p id="collectionMsg"></p>
 
