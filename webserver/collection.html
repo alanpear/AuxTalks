@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>AuxTalks - My Collection</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <script>
     function checkSession() {
@@ -47,18 +49,17 @@
                 document.getElementById('loading').style.display = 'none';
                 const container = document.getElementById('collectionContainer');
 
+                const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
                 if (res.status === 'success' && res.data && res.data.length > 0) {
                     container.innerHTML = res.data.map(item => `
-                        <div>
+                        <div style="background:white;border:1px solid #ccc;padding:10px 14px;margin-bottom:10px;max-width:700px;">
+                            <h3><a href="album.html?id=${encodeURIComponent(item.discogs_release_id)}">${esc(item.title)}</a></h3>
+                            <p>${esc(item.artist)}${item.release_year ? ' (' + esc(item.release_year) + ')' : ''} | <em>${esc(item.format_summary)}</em></p>
+                            ${Array.isArray(item.genres) && item.genres.length ? `<p>Genres: ${esc(item.genres.join(', '))}</p>` : ''}
+                            <small style="color: #888;">Media: ${esc(item.condition_grade)} | Sleeve: ${esc(item.sleeve_condition)}${item.lowest_price ? ' | Lowest price: $' + esc(item.lowest_price) : ''} | Added: ${esc(item.added_at)}</small>
+                            ${item.notes ? `<p><em>${esc(item.notes)}</em></p>` : ''}
                             <div>
-                                <h3>
-                                    <a href="album.html?id=${item.discogs_release_id}">${item.title}</a>
-                                </h3>
-                                <p>${item.artist} | <em>${item.format_summary}</em></p>
-                                <small style="color: #888;">Condition: ${item.condition_grade} | Added: ${item.added_at}</small>
-                            </div>
-                            <div>
-                                <button onclick="window.location.href='album.html?id=${item.discogs_release_id}'">View Tracklist</button>
+                                <button onclick="window.location.href='album.html?id=${encodeURIComponent(item.discogs_release_id)}'">View Tracklist</button>
                             </div>
                         </div>
                     `).join('');
