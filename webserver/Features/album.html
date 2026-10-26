@@ -16,8 +16,7 @@
                 <p>Year:<span id="year"></span> | <strong>Format:</strong> <span id="format"></span></span></p>
 
                 <div>
-                    <button id="buttonCollection">Add to Collection</button>
-                    <button id="buttonRate">Rate Album</button>
+                    <button id="buttonCollection">Add to Collection</butto>
                     <button id="buttonReview">Review Album</button>
                 </div>
 
@@ -34,8 +33,7 @@
                         </tr>
                     </thead>
                     <tbody id="tracklistTable"></tbody>
-                </table>
-            </h3>
+                </table
         </div>
     </div>
 
@@ -47,8 +45,16 @@
             document.getElementById('loadingStatus').innerText = 'Error: No album ID provided.';
         } else {
             fetch(`album_actions.php?action=get_album_details&id=${releaseId}`)
-                .then(r => r.json())
-                .then(res => {
+                .then(r => r.text())
+                .then(text => {
+                    let res;
+                    try {
+                        res = JSON.parse(text);
+                    } catch (e) {
+                        document.getElementById('loadingStatus').innerText = "Failed to parse album details.";
+                        throw e;
+                    }
+
                     if (res.status === 'success' && res.data){
                         const album = res.data;
                         document.getElementById('loadingStatus').style.display = 'none';
@@ -67,7 +73,10 @@
                         };
 
                         // Table
-                        const tracks = typeof album.tracklist === 'string' ? JSON.parse(album.tracklist) : (album.tracklist || []);
+                        let tracks = album.tracklist || [];
+                        if (typeof tracks === 'string') {
+                            try { tracks = JSON.parse(tracks) || []; } catch (e) { tracks = []; }
+                        }
 
                         const tbody = document.getElementById('tracklistTable');
                         tbody.innerHTML = '';
