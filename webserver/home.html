@@ -6,8 +6,6 @@
 	<link rel="stylesheet" href="styles.css">
 
 	<script>
-
-
 		//Function used to log the user out
 		function logout() {
 			console.log("function successfully called");
@@ -31,12 +29,19 @@
 			request.setRequestHeader("Content-Type", "application/json");
 
 			request.onreadystatechange = function () {
+				//Success
 				if (request.readyState === 4 && request.status === 200) {
 					var res = JSON.parse(request.responseText);
 
-					if (res.status === "success") {
+					if (res.status === "success") 
+					{
 						document.getElementById("welcome").innerHTML = "Welcome back, " + res.user;
-					} else {
+					
+					} 
+					
+					//Problem
+					else 
+					{
 						window.location.href = "login.html";
 					}
 				}
@@ -50,12 +55,14 @@
 </head>
 
 <body>
+	//Navigation
 	<a>Home</a>
-	<button onclick="logout()">Logout</button>
 	<h2 id="welcome">Loading session...</h2>
 	<button type="button" href="search.html">Search Music</button>
 	<div></div>
 	<button type="button" href="profile.html">My Profile</button>
+	<button onclick="logout()">Logout</button>
+
 
 </body>
 
