@@ -67,10 +67,10 @@
                         };
 
                         // Table
-                        const track = typeof album.tracklist === 'string' ? JSON.parse(album.tracklist) : (album.tracklist || []);
+                        const tracks = typeof album.tracklist === 'string' ? JSON.parse(album.tracklist) : (album.tracklist || []);
 
                         const tbody = document.getElementById('tracklistTable');
-                        tbody.innerHTML - '';
+                        tbody.innerHTML = '';
                         if (tracks.length === 0) {
                             tbody.innerHTML = '<tr><td>No tracklist available.</td></tr>';
                         } else {
