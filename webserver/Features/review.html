@@ -12,13 +12,13 @@
         <a href="collection.html">My Collection</a>
     </nav>
 
-    <div class="container" style="max-width: 650px; margin: 40px auto; padding: 25px; border: 1px solid #ddd; border-radius: 8px;">
+    <div class="container">
         <h2>Write a Review</h2>
-        <h3 id="albumHeading" style="color: #555;"></h3>
+        <h3 id="albumHeading"></h3>
 
-        <form id="reviewForm" style="margin-top: 20px;">
+        <form id="reviewForm">
             <label for="rating">Rating (1.0 to 5.0):</label><br>
-            <select id="rating" style="padding: 8px; margin: 8px 0 15px 0; width: 100%;">
+            <select id="rating">
                 <option value="5.0">5.0 ⭐⭐⭐⭐⭐</option>
                 <option value="4.0" selected>4.0 ⭐⭐⭐⭐</option>
                 <option value="3.0">3.0 ⭐⭐⭐</option>
@@ -27,7 +27,7 @@
             </select><br>
 
             <label for="format">Format Reviewed:</label><br>
-            <select id="format" style="padding: 8px; margin: 8px 0 15px 0; width: 100%;">
+            <select id="format">
                 <option value="Vinyl">Vinyl</option>
                 <option value="CD">CD</option>
                 <option value="Cassette">Cassette</option>
@@ -35,14 +35,14 @@
             </select><br>
 
             <label for="reviewText">Review Details:</label><br>
-            <textarea id="reviewText" rows="6" style="width: 100%; box-sizing: border-box; padding: 10px; margin: 8px 0 15px 0;" placeholder="What did you think of the production, tracks, and packaging?" required></textarea><br>
+            <textarea id="reviewText" rows="6" placeholder="What did you think of the production, tracks, and packaging?" required></textarea><br>
 
-            <button type="submit" style="padding: 10px 20px; background: #17a2b8; color: #fff; border: none; border-radius: 4px; font-weight: bold; cursor: pointer;">Post Review</button>
-            <button type="button" id="btnCancel" style="padding: 10px 15px; margin-left: 10px; cursor: pointer;">Cancel</button>
+            <button type="submit">Post Review</button>
+            <button type="button" id="btnCancel">Cancel</button>
         </form>
-        <div id="status" style="margin-top: 15px; font-weight: bold;"></div>
+        <div id="status"></div>
 
-        <hr style="margin: 30px 0;">
+        <hr>
         <h3>Community Reviews</h3>
         <div id="reviewsList">Loading reviews...</div>
     </div>
@@ -63,14 +63,14 @@
                     const container = document.getElementById('reviewsList');
                     if (res.status === 'success' && res.data && res.data.length > 0) {
                         container.innerHTML = res.data.map(r => `
-                            <div style="border-bottom: 1px solid #eee; padding: 12px 0;">
+                            <div >
                                 <strong>@${r.user}</strong> rated it <strong>${r.rating}/5.0</strong> (${r.physical_format})
-                                <small style="color: #888; margin-left: 10px;">${r.created_at}</small>
-                                <p style="margin: 6px 0 0 0;">${r.review_text || '<em>No review text provided.</em>'}</p>
+                                <small>${r.created_at}</small>
+                                <p>${r.review_text || '<em>No review text provided.</em>'}</p>
                             </div>
                         `).join('');
                     } else {
-                        container.innerHTML = '<p style="color: #777;">No reviews yet for this album.</p>';
+                        container.innerHTML = '<p>No reviews yet for this album.</p>';
                     }
                 });
         }

@@ -122,6 +122,19 @@
 
         window.onload = checkSession;
 
+        fetch('album_actions.php?action=get_collection')
+            .then(r => r.json())
+            .then(res => {
+                const container = document.getElementById('profileCollectionList');
+                if (container && res.status === 'success' && res.data) {
+                    container.innerHTML = res.data.map(item => `
+                        <li>
+                            <a href="album.html?id=${item.discogs_release_id}">${item.title}</a> - ${item.artist} (${item.format_summary})
+                        </li>
+                    `).join('');
+                }
+            });
+
     </script>
 </head>
 
