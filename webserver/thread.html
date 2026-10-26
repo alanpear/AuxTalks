@@ -10,6 +10,29 @@
             <a href="profile.html">Profile</a>
             <a href="search.html">Search</a>
         </nav>
+
         <h1>Threads</h1>
+        <div class="page">
+            <p><a href="discussions.html">Discussions</a></p>
+            <div id="loadingStatus">Loading...</div>
+
+            <div id="threadView" style="display:none;">
+                <h1 id="threadTitle"></h1>
+                <p class="meta" id="threadMeta"></p>
+                <p class="meta" id="threadAlbum"></p>
+
+                <div id="posts"></div>
+
+                <form id="replyForm" class="reply-form">
+                    <h3>Post a Reply</h3>
+                    <p id="replyingTo"></p>
+                    <textarea id="replyBody" placeholder="Write your reply here..."></textarea>
+                    <button type="submit">Post Reply</button>
+                    <p id="replyStatus"></p>
+                </form>
+            </div>
+        </div>
+
+        
     </body>
 </html>
