@@ -35,7 +35,6 @@
     <nav class="navbar">
         <a href="home.html">Home</a>
         <a href="search.html">Search</a>
-        <a href="collection.html">My Collection</a>
         <a href="discussions.html">Discussions</a>
         <a href="profile.html">Profile</a>
     </nav>
@@ -100,9 +99,9 @@
                     });
 
                     select.innerHTML = cats.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
-                    // Album-linked threads default to "Album Talk" when it exists
+                    // Album-linked threads default to "Album Deep-Dives" when it exists
                     if (albumId) {
-                        const albumCat = cats.find(c => c.slug === 'album-talk');
+                        const albumCat = cats.find(c => c.slug === 'album-deep-dives');
                         if (albumCat) select.value = albumCat.id;
                     } else if (currentCategory) {
                         select.value = currentCategory;
