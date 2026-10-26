@@ -38,7 +38,7 @@
         <div id="albumView" style="display: none;">
             <h1 id="title"></h1>
             <h3 id="artist"></h3>    
-                <p>Year:<span id="year"></span> | <strong>Format:</strong> <span id="format"></span></span></p>
+                <p>Year:<span id="year"></span> | <strong>Format:</strong> <span id="format"></span></p>
                 <div class="collection-box">
                     <h3>Add to My Collection</h3>
                     <label for="conditionGrade">Media Condition:</label>
@@ -195,6 +195,9 @@
             const formData = new FormData();
             formData.append('action', 'add_to_collection');
             formData.append('discogs_release_id', releaseId);
+            formData.append('condition_grade', document.getElementById('conditionGrade').value);
+            formData.append('sleeve_condition', document.getElementById('sleeveCondition').value);
+            formData.append('notes', document.getElementById('collectionNotes').value);
             formData.append('title', album ? (album.title || '') : '');
             formData.append('artist', album ? (album.artist || '') : '');
 
