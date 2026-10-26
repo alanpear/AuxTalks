@@ -230,6 +230,196 @@ function handleGetRelease($releaseId) {
     }
 }
 
+function suggestionList($value) {
+    if (is_array($value)) return $value;
+    $decoded = json_decode((string)$value, true);
+    return is_array($decoded) ? $decoded : [];
+}
+ 
+function suggestionAlbumKey($title) {
+    $parts = explode(' - ', (string)$title, 2);
+    return strtolower(trim(count($parts) === 2 ? $parts[1] : $parts[0]));
+}
+ 
+function scoreSuggestion($seed, $cand) {
+    $sharedStyles = array_values(array_intersect($seed['styles'], suggestionList($cand['styles'] ?? [])));
+    $sharedGenres = array_values(array_intersect($seed['genres'], suggestionList($cand['genres'] ?? [])));
+    $yearDiff = (!empty($seed['release_year']) && !empty($cand['release_year']))
+        ? abs((int)$seed['release_year'] - (int)$cand['release_year'])
+        : null;
+    $yearMatch = $yearDiff !== null && $yearDiff <= 3;
+ 
+    return [
+        //compared left to right, so earlier entries win ties first
+        'score' => [
+            count($sharedStyles) > 0 ? 1 : 0,
+            count($sharedGenres) > 0 ? 1 : 0,
+            $yearMatch ? 1 : 0,
+            count($sharedStyles),
+            count($sharedGenres),
+            $yearDiff === null ? -999 : -$yearDiff
+        ],
+        'shared_styles' => $sharedStyles,
+        'shared_genres' => $sharedGenres,
+        'year_match'    => $yearMatch
+    ];
+}
+ 
+function handleGetSuggestion($user) {
+    if (empty($user)) return ["status" => "error", "message" => "You must be logged in."];
+    $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
+    if ($db->connect_error) return ["status" => "error", "message" => "Database offline"];
+ 
+    //the user's most recent collection entry is the idea for the suggestion
+    $stmt = $db->prepare("SELECT uc.discogs_release_id, cr.title, cr.artist, cr.release_year, cr.genres, cr.styles
+                          FROM user_collection uc
+                          LEFT JOIN cached_releases cr ON cr.discogs_release_id = uc.discogs_release_id
+                          WHERE uc.user = ?
+                          ORDER BY uc.added_at DESC, uc.id DESC
+                          LIMIT 1");
+    $stmt->bind_param("s", $user);
+    $stmt->execute();
+    $seedRow = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+ 
+    if (!$seedRow) {
+        $db->close();
+        return ["status" => "success", "data" => null, "message" => "Add an album to your collection to get a suggestion."];
+    }
+ 
+    $seed = [
+        'discogs_release_id' => (int)$seedRow['discogs_release_id'],
+        'title'        => $seedRow['title'] ?? 'Unknown Title',
+        'artist'       => $seedRow['artist'] ?? 'Unknown Artist',
+        'release_year' => $seedRow['release_year'] ?? null,
+        'genres'       => suggestionList($seedRow['genres'] ?? '[]'),
+        'styles'       => suggestionList($seedRow['styles'] ?? '[]')
+    ];
+ 
+    //older cache rows have no styles: fetch the full release details once and cache them
+    if (empty($seed['styles']) || empty($seed['genres']) || empty($seed['release_year'])) {
+        $dmzClient = new rabbitMQClient("testRabbitMQ.ini", "dmzServer");
+        $rel = $dmzClient->send_request([
+            'action' => 'fetch_release_details',
+            'data'   => ['discogs_release_id' => $seed['discogs_release_id']]
+        ]);
+        if (isset($rel['status']) && $rel['status'] === 'success') {
+            cacheReleaseDetails($db, $rel['data']);
+            $seed['title']        = $rel['data']['title'] ?? $seed['title'];
+            $seed['artist']       = $rel['data']['artist'] ?? $seed['artist'];
+            $seed['release_year'] = $rel['data']['release_year'] ?? $seed['release_year'];
+            $seed['genres']       = $rel['data']['genres'] ?? [];
+            $seed['styles']       = $rel['data']['styles'] ?? [];
+        }
+    }
+ 
+    if (empty($seed['styles']) && empty($seed['genres'])) {
+        $db->close();
+        return ["status" => "error", "message" => "Not enough information about your latest album to make a suggestion."];
+    }
+ 
+    //everything the user already owns is excluded (by release id and by album name)
+    $ownedIds = [];
+    $ownedAlbums = [];
+    $stmt = $db->prepare("SELECT uc.discogs_release_id, cr.title FROM user_collection uc
+                          LEFT JOIN cached_releases cr ON cr.discogs_release_id = uc.discogs_release_id
+                          WHERE uc.user = ?");
+    $stmt->bind_param("s", $user);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    while ($row = $res->fetch_assoc()) {
+        $ownedIds[(int)$row['discogs_release_id']] = true;
+        if (!empty($row['title'])) $ownedAlbums[suggestionAlbumKey($row['title'])] = true;
+    }
+    $stmt->close();
+    $ownedAlbums[suggestionAlbumKey($seed['title'])] = true;
+ 
+    $pickBest = function ($candidates) use ($seed, $ownedIds, $ownedAlbums) {
+        $best = null;
+        foreach ($candidates as $cand) {
+            $id = (int)($cand['discogs_release_id'] ?? 0);
+            if ($id <= 0 || isset($ownedIds[$id]) || isset($ownedAlbums[suggestionAlbumKey($cand['title'] ?? '')])) continue;
+            $scored = scoreSuggestion($seed, $cand);
+            if (empty($scored['shared_styles']) && empty($scored['shared_genres'])) continue;
+            if ($best === null || $scored['score'] > $best['scored']['score']) {
+                $best = ['album' => $cand, 'scored' => $scored];
+            }
+        }
+        return $best;
+    };
+ 
+    //look in our own cache first
+    $local = [];
+    $res = $db->query("SELECT discogs_release_id, title, artist, release_year, format_summary, genres, styles
+                       FROM cached_releases
+                       WHERE (genres IS NOT NULL AND genres <> '[]') OR (styles IS NOT NULL AND styles <> '[]')
+                       LIMIT 1000");
+    if ($res) {
+        while ($row = $res->fetch_assoc()) $local[] = $row;
+    }
+    $best = $pickBest($local);
+ 
+    //if the cache has no perfect match (style + genre + year), ask Discogs through the DMZ
+    $perfect = $best !== null && $best['scored']['score'][0] && $best['scored']['score'][1] && $best['scored']['score'][2];
+    if (!$perfect) {
+        $searches = [];
+        if (!empty($seed['styles'])) $searches[] = ['style' => $seed['styles'][0], 'genre' => $seed['genres'][0] ?? ''];
+        if (!empty($seed['genres'])) $searches[] = ['genre' => $seed['genres'][0]];
+ 
+        $dmzClient = new rabbitMQClient("testRabbitMQ.ini", "dmzServer");
+        foreach ($searches as $search) {
+            $dmzRes = $dmzClient->send_request(['action' => 'search_similar', 'data' => $search]);
+            if (!isset($dmzRes['status']) || $dmzRes['status'] !== 'success') continue;
+            $remote = $dmzRes['data']['results'] ?? [];
+ 
+            //cache what we found so future suggestions can come straight from the database
+            $ins = $db->prepare("INSERT IGNORE INTO cached_releases (discogs_release_id, title, artist, release_year, format_summary, genres, styles) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            if ($ins) {
+                foreach ($remote as $r) {
+                    $g = json_encode($r['genres'] ?? []);
+                    $st = json_encode($r['styles'] ?? []);
+                    $ins->bind_param("ississs", $r['discogs_release_id'], $r['title'], $r['artist'], $r['release_year'], $r['format_summary'], $g, $st);
+                    $ins->execute();
+                }
+                $ins->close();
+            }
+ 
+            $remoteBest = $pickBest($remote);
+            if ($remoteBest !== null && ($best === null || $remoteBest['scored']['score'] > $best['scored']['score'])) {
+                $best = $remoteBest;
+            }
+            if ($best !== null) break;
+        }
+    }
+    $db->close();
+ 
+    if ($best === null) {
+        return ["status" => "success", "data" => null, "message" => "No suggestion found for your latest album yet. Try adding another album."];
+    }
+ 
+    $album = $best['album'];
+    return [
+        "status" => "success",
+        "data" => [
+            "discogs_release_id" => (int)$album['discogs_release_id'],
+            "title"          => $album['title'],
+            "artist"         => $album['artist'],
+            "release_year"   => $album['release_year'],
+            "format_summary" => $album['format_summary'] ?? 'Standard',
+            "genres"         => suggestionList($album['genres'] ?? []),
+            "styles"         => suggestionList($album['styles'] ?? []),
+            "shared_styles"  => $best['scored']['shared_styles'],
+            "shared_genres"  => $best['scored']['shared_genres'],
+            "year_match"     => $best['scored']['year_match'],
+            "based_on" => [
+                "discogs_release_id" => $seed['discogs_release_id'],
+                "title"        => $seed['title'],
+                "artist"       => $seed['artist'],
+                "release_year" => $seed['release_year']
+            ]
+        ]
+    ];
+}
 
 function doLogout($sessionKey){
 	if(empty($sessionKey)){
@@ -604,6 +794,8 @@ function requestProcessor($request)
     case "get_album_reviews":
         return handleGetAlbumReviews((int)($request['discogs_release_id'] ?? 0));
   	}
+    case "get_suggestion":
+        return handleGetSuggestion($username);
   return array("returnCode" => '0', 'message'=>"Server received request and processed");
 }
 
