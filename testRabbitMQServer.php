@@ -370,6 +370,161 @@ function handleGetAlbumReviews($releaseId) {
     return ["status" => "success", "data" => $reviews];
 }
 
+function handleGetForumCategories() {
+    $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
+    if ($db->connect_error) return ["status" => "error", "message" => "Database offline"];
+    $res = $db->query("SELECT c.id, c.name, c.slug, c.description,
+                              (SELECT COUNT(*) FROM forum_threads t WHERE t.category_id = c.id) AS thread_count
+                       FROM forum_categories c ORDER BY c.id");
+    $cats = [];
+    while ($row = $res->fetch_assoc()) $cats[] = $row;
+    $db->close();
+    return ["status" => "success", "data" => $cats];
+}
+ 
+function handleGetThreads($categoryId = 0) {
+    $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
+    if ($db->connect_error) return ["status" => "error", "message" => "Database offline"];
+ 
+    //newest activity first; include reply count, last post time and linked album title
+    $sql = "SELECT t.id, t.category_id, t.user, t.title, t.discogs_release_id, t.created_at,
+                   c.name AS category_name,
+                   cr.title AS album_title,
+                   (SELECT COUNT(*) FROM forum_posts p WHERE p.thread_id = t.id) AS post_count,
+                   COALESCE((SELECT MAX(p.created_at) FROM forum_posts p WHERE p.thread_id = t.id), t.created_at) AS last_activity
+            FROM forum_threads t
+            JOIN forum_categories c ON c.id = t.category_id
+            LEFT JOIN cached_releases cr ON cr.discogs_release_id = t.discogs_release_id
+            " . ($categoryId > 0 ? "WHERE t.category_id = ?" : "") . "
+            ORDER BY last_activity DESC
+            LIMIT 100";
+    $stmt = $db->prepare($sql);
+    if (!$stmt) { $err = $db->error; $db->close(); return ["status" => "error", "message" => "Thread query failed: " . $err]; }
+    if ($categoryId > 0) $stmt->bind_param("i", $categoryId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $threads = [];
+    while ($row = $res->fetch_assoc()) $threads[] = $row;
+    $stmt->close();
+    $db->close();
+    return ["status" => "success", "data" => $threads];
+}
+ 
+function handleCreateThread($user, $categoryId, $title, $body, $releaseId = 0) {
+    $title = trim((string)$title);
+    $body  = trim((string)$body);
+    if (empty($user))  return ["status" => "error", "message" => "You must be logged in to start a discussion."];
+    if ($title === '') return ["status" => "error", "message" => "Please enter a title."];
+    if ($body === '')  return ["status" => "error", "message" => "Please write the first post."];
+    $title = mb_substr($title, 0, 255);
+ 
+    $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
+    if ($db->connect_error) return ["status" => "error", "message" => "Database offline"];
+ 
+    $chk = $db->prepare("SELECT id FROM forum_categories WHERE id = ?");
+    $chk->bind_param("i", $categoryId);
+    $chk->execute();
+    $catOk = $chk->get_result()->fetch_assoc();
+    $chk->close();
+    if (!$catOk) { $db->close(); return ["status" => "error", "message" => "Please pick a valid category."]; }
+ 
+    //thread + first post are saved together, or not at all
+    $db->begin_transaction();
+    try {
+        $rel = $releaseId > 0 ? $releaseId : null;
+        $t = $db->prepare("INSERT INTO forum_threads (category_id, user, title, discogs_release_id, created_at) VALUES (?, ?, ?, ?, NOW())");
+        $t->bind_param("issi", $categoryId, $user, $title, $rel);
+        if (!$t->execute()) throw new Exception($t->error);
+        $threadId = $db->insert_id;
+        $t->close();
+ 
+        $p = $db->prepare("INSERT INTO forum_posts (thread_id, user, parent_post_id, body, created_at) VALUES (?, ?, NULL, ?, NOW())");
+        $p->bind_param("iss", $threadId, $user, $body);
+        if (!$p->execute()) throw new Exception($p->error);
+        $p->close();
+ 
+        $db->commit();
+        $db->close();
+        return ["status" => "success", "message" => "Discussion created!", "thread_id" => $threadId];
+    } catch (Exception $e) {
+        $db->rollback();
+        $db->close();
+        return ["status" => "error", "message" => "Failed to create discussion: " . $e->getMessage()];
+    }
+}
+ 
+function handleGetThread($threadId) {
+    $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
+    if ($db->connect_error) return ["status" => "error", "message" => "Database offline"];
+ 
+    $stmt = $db->prepare("SELECT t.id, t.category_id, t.user, t.title, t.discogs_release_id, t.created_at,
+                                 c.name AS category_name, cr.title AS album_title
+                          FROM forum_threads t
+                          JOIN forum_categories c ON c.id = t.category_id
+                          LEFT JOIN cached_releases cr ON cr.discogs_release_id = t.discogs_release_id
+                          WHERE t.id = ?");
+    $stmt->bind_param("i", $threadId);
+    $stmt->execute();
+    $thread = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+    if (!$thread) { $db->close(); return ["status" => "error", "message" => "Discussion not found."]; }
+ 
+    $stmt = $db->prepare("SELECT p.id, p.user, p.parent_post_id, p.body, p.created_at,
+                                 pp.user AS parent_user
+                          FROM forum_posts p
+                          LEFT JOIN forum_posts pp ON pp.id = p.parent_post_id
+                          WHERE p.thread_id = ?
+                          ORDER BY p.created_at ASC, p.id ASC");
+    $stmt->bind_param("i", $threadId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $posts = [];
+    while ($row = $res->fetch_assoc()) $posts[] = $row;
+    $stmt->close();
+    $db->close();
+ 
+    $thread['posts'] = $posts;
+    return ["status" => "success", "data" => $thread];
+}
+ 
+function handleAddPost($user, $threadId, $body, $parentPostId = 0) {
+    $body = trim((string)$body);
+    if (empty($user))  return ["status" => "error", "message" => "You must be logged in to reply."];
+    if ($body === '')  return ["status" => "error", "message" => "Reply cannot be empty."];
+ 
+    $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
+    if ($db->connect_error) return ["status" => "error", "message" => "Database offline"];
+ 
+    $chk = $db->prepare("SELECT id FROM forum_threads WHERE id = ?");
+    $chk->bind_param("i", $threadId);
+    $chk->execute();
+    $exists = $chk->get_result()->fetch_assoc();
+    $chk->close();
+    if (!$exists) { $db->close(); return ["status" => "error", "message" => "Discussion not found."]; }
+ 
+    //a reply-to must be a post in the same thread
+    $parent = null;
+    if ($parentPostId > 0) {
+        $chk = $db->prepare("SELECT id FROM forum_posts WHERE id = ? AND thread_id = ?");
+        $chk->bind_param("ii", $parentPostId, $threadId);
+        $chk->execute();
+        if ($chk->get_result()->fetch_assoc()) $parent = $parentPostId;
+        $chk->close();
+    }
+ 
+    $stmt = $db->prepare("INSERT INTO forum_posts (thread_id, user, parent_post_id, body, created_at) VALUES (?, ?, ?, ?, NOW())");
+    $stmt->bind_param("isis", $threadId, $user, $parent, $body);
+    $ok = $stmt->execute();
+    $err = $stmt->error;
+    $stmt->close();
+    $db->close();
+ 
+    if($ok){
+        return ["status" => "success", "message" => "Reply posted!"];
+    }else{
+        return ["status" => "error", "message" => "Failed to post reply: " . $err];
+    }
+}
 
 
 
