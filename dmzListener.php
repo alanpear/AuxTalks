@@ -164,6 +164,33 @@ function processDMZRequest($request)
 					"marketplace_url" => "https://www.discogs.com/sell/release/{$releaseId}"
 				]
 			];
+		
+		case 'search_similar':
+			$params = ['type' => 'release', 'per_page' => 50];
+			if (!empty($data['style'])) $params['style'] = $data['style'];
+			if (!empty($data['genre'])) $params['genre'] = $data['genre'];
+			if (count($params) === 2) {
+				return ["status" => "error", "message" => "Style or genre required"];
+			}
+
+			$apiResult = callDiscogsAPI('/databse/search', $params);
+			if ($apiResult['status'] === 'error') {
+				return $apiResult;
+			}
+
+			$similar = [];
+			foreach ($apiResult['payload']['results'] ?? [] as $item) {
+				$parts = explode(' - ', $item['title'] ?? '', 2);
+				$similar[] = [
+					'discogs_release_id' => $item['id'] ?? 0,
+					'title' => count($parts) === 2 ? $parts[1] : ($item['title'] ?? 'Unkown Title'),
+					'artist' => count($parts) === 2 ? $parts[0] :  'Unkown Artist',
+					'release_year' => !empty($item['year']) ? (int)$item['year'] : null,
+					'format_summary' => is_array($item['format'] ?? null) ? implode(', ', $item['format']) : 'Standard',
+					'genres' => $item['genre'] ?? [],
+					'styles' => $item['style'] ?? []
+				];
+			}
 
 		default:
 			return ["status" => "error", "message" => "Unsupported action '{$action}' on DMZ"];
