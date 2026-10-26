@@ -14,7 +14,7 @@ if (empty($currentUser) && $action !== 'get_album_details' && $action !== 'get_r
     exit();
 }
 
-$client = new rabbitMQClient("../../testRabbitMQ.ini", "testServer");
+$client = new rabbitMQClient("testRabbitMQ.ini", "testServer");
 
 switch ($action) {
     case 'get_album_details':
