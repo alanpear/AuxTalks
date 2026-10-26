@@ -50,6 +50,63 @@
 		}
 
 		window.onload = checkSession;
+
+		//Escapes text before putting it in the page
+		function escapeHtml(value) {
+			var div = document.createElement("div");
+			div.textContent = value == null ? "" : String(value);
+			return div.innerHTML;
+		}
+
+		//Gets one album suggestion based on the album the user most recently added to their collection
+		function loadSuggestion() {
+			var box = document.getElementById("suggestion");
+			var request = new XMLHttpRequest();
+			request.open("GET", "album_actions.php?action=get_suggestion", true);
+
+			request.onreadystatechange = function () {
+				if (request.readyState !== 4) return;
+
+				var res;
+				try {
+					res = JSON.parse(request.responseText);
+				} catch (e) {
+					box.innerHTML = "<p>Unable to load a suggestion right now.</p>";
+					return;
+				}
+
+				if (res.status !== "success") {
+					box.innerHTML = "<p>" + escapeHtml(res.message || "Unable to load a suggestion right now.") + "</p>";
+					return;
+				}
+
+				//No suggestion yet (empty collection or nothing similar found)
+				var s = res.data;
+				if (!s) {
+					box.innerHTML = "<p>" + escapeHtml(res.message || "No suggestion yet.") + "</p>" +
+						'<p><a href="search.html">Search for albums</a> and add them to your collection.</p>';
+					return;
+				}
+
+				//Hierarchy: style, genre, year
+				var reasons = [];
+				if (s.shared_styles && s.shared_styles.length) reasons.push("Style: " + s.shared_styles.join(", "));
+				if (s.shared_genres && s.shared_genres.length) reasons.push("Genre: " + s.shared_genres.join(", "));
+				if (s.year_match) reasons.push("Released within 3 years of it (" + s.release_year + ")");
+
+				var based = s.based_on || {};
+				box.innerHTML =
+					"<p>Because you added <a href=\"album.html?id=" + encodeURIComponent(based.discogs_release_id) + "\">" +
+						escapeHtml(based.title) + "</a> by " + escapeHtml(based.artist) + ":</p>" +
+					"<h4><a href=\"album.html?id=" + encodeURIComponent(s.discogs_release_id) + "\">" + escapeHtml(s.title) + "</a></h4>" +
+					"<p>" + escapeHtml(s.artist) + (s.release_year ? " (" + escapeHtml(s.release_year) + ")" : "") + "</p>" +
+					"<p>Shared with your album:</p>" +
+					"<ul><li>" + reasons.map(escapeHtml).join("</li><li>") + "</li></ul>" +
+					"<button type=\"button\" onclick=\"window.location.href='album.html?id=" + encodeURIComponent(s.discogs_release_id) + "'\">View Album</button>";
+			};
+
+			request.send();
+		}
 	</script>
 </head>
 
@@ -67,6 +124,10 @@
 		<button type="button" onclick="window.location.href='discussions.html'">Discussions</button>
 
 
+	</div>
+	<div>
+		<h3>Suggested For You</h3>
+		<div id="suggestion">Loading suggestion...</div>
 	</div>
 </body>
 
