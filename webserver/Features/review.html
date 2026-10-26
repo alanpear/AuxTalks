@@ -56,58 +56,28 @@
             window.location.href = `album.html?id=${releaseId}`;
         };
 
-        function checkSession()
-        {
-            var request = new XMLHttpRequest();
+		function checkSession() {
+			var request = new XMLHttpRequest();
+			request.open("POST", "login.php", true);
+			request.setRequestHeader("Content-Type", "application/json");
 
-            request.open("POST", "login.php", true);
-            request.setRequestHeader("Content-Type", "application/json");
+			request.onreadystatechange = function () {
+				if (request.readyState === 4 && request.status === 200){
+					var res = JSON.parse(request.responseText);
 
-            request.onreadystatechange = function()
-            {
-                if (request.readyState === 4)
-                {
-                    if (request.status === 200)
-                    {
-                        try {
-                            var res = JSON.parse(request.responseText);
+					if (res.status === "success") {
 
-                            if (res.status === "success")
-                            {
-                                // Display username
-                                document.getElementById("username").textContent = res.user;
+					} else {
+						window.location.href = "login.html";
+					}
+				}
+			};
+			
+			request.send(JSON.stringify({type: "validate_session"}));
+		}
 
-                                // Show profile
-                                document.getElementById("profile").hidden = false;
-
-                                // Retrieve music collection
-                                getCollection();
-                            }
-                            else
-                            {
-                                window.location.href = "login.html";
-                            }
-                        }
-                        catch (error)
-                        {
-                            console.error(error);
-                            window.location.href = "login.html";
-                        }
-                    }
-                    else
-                    {
-                        window.location.href = "login.html";
-                    }
-                }
-            };
-
-            request.send(JSON.stringify({
-                type: "validate_session"
-            }));
-        }
-
-        window.onload = checkSession;
-
+		window.onload = checkSession;
+        
         function fetchReviews() {
             fetch(`album_actions.php?action=get_reviews&id=${releaseId}`)
                 .then(r => r.json())
