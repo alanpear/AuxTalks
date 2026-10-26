@@ -1,62 +1,126 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>AuxTalks - View Album</title>
-    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* styles.css centers every form at 300px with a big margin; keep this one in the page flow */
+        .review-form {
+            width: auto;
+            max-width: 600px;
+            margin: 15px 0;
+        }
+        .review-form label { display: block; margin-top: 10px; font-weight: bold; }
+        .review-form select,
+        .review-form textarea { width: 100%; padding: 6px; box-sizing: border-box; margin-top: 4px; }
+        .review-form button { margin-top: 12px; }
+        .review-card {
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 10px 14px;
+            margin-bottom: 10px;
+            max-width: 600px;
+        }
+        .review-card small { color: #777; margin-left: 8px; }
+        .review-card p { margin: 6px 0 0; white-space: pre-wrap; }
+    </style>
 </head>
 
 <body>
     <!-- Navbar -->
+    <p><a href="search.html">&larr; Back to Search</a></p>
 
     <div class="container">
-        <div id='loadingStatus'>Loading album details...</div>
+        <div id="loadingStatus">Loading album details...</div>
+
         <div id="albumView" style="display: none;">
             <h1 id="title"></h1>
-            <h3 id="artist"></h3>    
-                <p>Year:<span id="year"></span> | <strong>Format:</strong> <span id="format"></span></span></p>
+            <h3 id="artist"></h3>
+            <p><strong>Year:</strong> <span id="year"></span> | <strong>Format:</strong> <span id="format"></span></p>
 
-                <div>
-                    <button id="buttonCollection">Add to Collection</butto>
-                    <button id="buttonReview">Review Album</button>
-                </div>
+            <div>
+                <button id="buttonCollection">Add to Collection</button>
+            </div>
 
-                <!-- Collection Message Here -->
-                <p id="collectionMsg"></p>
+            <p id="collectionMsg"></p>
 
-                <h2>Tracklist</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Track #</th>
-                            <th>Title</th>
-                            <th>Length</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tracklistTable"></tbody>
-                </table>
+            <h2>Tracklist</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Track #</th>
+                        <th>Title</th>
+                        <th>Length</th>
+                    </tr>
+                </thead>
+                <tbody id="tracklistTable"></tbody>
+            </table>
+
+            <!-- Reviews -->
+            <hr>
+            <h2 id="reviewsSection">Reviews</h2>
+            <p id="reviewSummary"></p>
+
+            <form id="reviewForm" class="review-form">
+                <h3>Write a Review</h3>
+                <label for="rating">Rating:</label>
+                <select id="rating">
+                    <option value="5.0">5.0 ⭐⭐⭐⭐⭐</option>
+                    <option value="4.0" selected>4.0 ⭐⭐⭐⭐</option>
+                    <option value="3.0">3.0 ⭐⭐⭐</option>
+                    <option value="2.0">2.0 ⭐⭐</option>
+                    <option value="1.0">1.0 ⭐</option>
+                </select>
+
+                <label for="reviewFormat">Format Reviewed:</label>
+                <select id="reviewFormat">
+                    <option value="Vinyl">Vinyl</option>
+                    <option value="CD">CD</option>
+                    <option value="Cassette">Cassette</option>
+                    <option value="Digital">Digital</option>
+                </select>
+
+                <label for="reviewText">Review:</label>
+                <textarea id="reviewText" rows="5" placeholder="What did you think of the production, tracks, and packaging?" required></textarea>
+
+                <button type="submit">Post Review</button>
+                <p id="reviewStatus"></p>
+            </form>
+
+            <div id="reviewsList">Loading reviews...</div>
         </div>
     </div>
 
     <script>
-        const urlParams =  new URLSearchParams(window.location.search);
+        const urlParams = new URLSearchParams(window.location.search);
         const releaseId = urlParams.get('id');
+        let album = null;
 
-        if (!releaseId) {
+        function escapeHtml(s) {
+            return String(s ?? '').replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
+
+        if (!releaseId || releaseId === '0') {
             document.getElementById('loadingStatus').innerText = 'Error: No album ID provided.';
         } else {
-            fetch(`album_actions.php?action=get_album_details&id=${releaseId}`)
+            fetch(`album_actions.php?action=get_album_details&id=${encodeURIComponent(releaseId)}`)
                 .then(r => r.text())
                 .then(text => {
                     let res;
                     try {
                         res = JSON.parse(text);
                     } catch (e) {
-                        document.getElementById('loadingStatus').innerText = "Failed to parse album details.";
+                        console.error('Non-JSON response from album_actions.php:', text);
                         throw e;
                     }
 
-                    if (res.status === 'success' && res.data){
-                        const album = res.data;
+                    if (res.status === 'success' && res.data) {
+                        album = res.data;
+
                         document.getElementById('loadingStatus').style.display = 'none';
                         document.getElementById('albumView').style.display = 'block';
 
@@ -65,25 +129,27 @@
                         document.getElementById('year').innerText = album.release_year || 'N/A';
                         document.getElementById('format').innerText = album.format_summary || 'Standard';
 
-                        document.getElementById('buttonReview').onclick = () => {
-                            window.location.href = `review.html?id=${releaseId}&title=${encodeURIComponent(album.title)}`;
-                        };
+                        fetchReviews();
 
-                        // Table
+                        // Tracklist table (may arrive as a JSON string from the DB cache)
                         let tracks = album.tracklist || [];
                         if (typeof tracks === 'string') {
                             try { tracks = JSON.parse(tracks) || []; } catch (e) { tracks = []; }
                         }
+                        if (!Array.isArray(tracks)) tracks = Object.values(tracks || {});
+                        if (tracks.length === 0) console.warn('Album response had no tracklist:', res);
 
                         const tbody = document.getElementById('tracklistTable');
                         tbody.innerHTML = '';
                         if (tracks.length === 0) {
-                            tbody.innerHTML = '<tr><td>No tracklist available.</td></tr>';
+                            tbody.innerHTML = '<tr><td colspan="3">No tracklist available.</td></tr>';
                         } else {
                             tracks.forEach(t => {
                                 const tr = document.createElement('tr');
-                                tr.innerHTML = `<td>${t.position || '-'}</td><td>${t.title}</td><td>${t.duration || 'N/A'}</td>`
-
+                                tr.innerHTML =
+                                    `<td>${escapeHtml(t.position || '-')}</td>` +
+                                    `<td>${escapeHtml(t.title || 'Untitled Track')}</td>` +
+                                    `<td>${escapeHtml(t.duration || 'N/A')}</td>`;
                                 tbody.appendChild(tr);
                             });
                         }
@@ -91,8 +157,9 @@
                         document.getElementById('loadingStatus').innerText = res.message || 'Album details not found.';
                     }
                 })
-                .catch(() => {
-                    document.getElementById('loadingStatus').innerText = "Failed to load album.";
+                .catch(err => {
+                    console.error('Album load failed:', err);
+                    document.getElementById('loadingStatus').innerText = 'Failed to load album.';
                 });
         }
 
@@ -101,37 +168,91 @@
             const formData = new FormData();
             formData.append('action', 'add_to_collection');
             formData.append('discogs_release_id', releaseId);
+            formData.append('title', album ? (album.title || '') : '');
+            formData.append('artist', album ? (album.artist || '') : '');
+
+            const msg = document.getElementById('collectionMsg');
+            fetch('album_actions.php', { method: 'POST', body: formData })
+                .then(r => r.json())
+                .then(res => {
+                    msg.style.color = res.status === 'success' ? 'green' : 'red';
+                    msg.innerText = res.message || (res.status === 'success' ? 'Added to collection.' : 'Could not add to collection.');
+                })
+                .catch(() => {
+                    msg.style.color = 'red';
+                    msg.innerText = 'Could not add to collection.';
+                });
+        };
+        // Reviews: load the list
+        function fetchReviews() {
+            const container = document.getElementById('reviewsList');
+            const summary = document.getElementById('reviewSummary');
+            fetch(`album_actions.php?action=get_reviews&id=${encodeURIComponent(releaseId)}`)
+                .then(r => r.json())
+                .then(res => {
+                    const reviews = (res.status === 'success' && Array.isArray(res.data)) ? res.data : [];
+                    if (reviews.length === 0) {
+                        summary.innerText = '';
+                        container.innerHTML = '<p>No reviews yet. Be the first to review this album!</p>';
+                        return;
+                    }
+                    const avg = reviews.reduce((s, r) => s + parseFloat(r.rating || 0), 0) / reviews.length;
+                    summary.innerHTML = `Average rating: <strong>${avg.toFixed(1)}/5.0</strong> from ${reviews.length} review${reviews.length === 1 ? '' : 's'}`;
+                    container.innerHTML = reviews.map(r => `
+                        <div class="review-card">
+                            <strong>@${escapeHtml(r.user)}</strong> rated it <strong>${escapeHtml(r.rating)}/5.0</strong>
+                            (${escapeHtml(r.physical_format || 'Vinyl')})
+                            <small>${escapeHtml(r.created_at)}</small>
+                            <p>${r.review_text ? escapeHtml(r.review_text) : '<em>No review text provided.</em>'}</p>
+                        </div>
+                    `).join('');
+                })
+                .catch(() => { container.innerHTML = '<p>Could not load reviews.</p>'; });
+        }
+
+        // Reviews: post a new one
+        document.getElementById('reviewForm').onsubmit = (e) => {
+            e.preventDefault();
+            const status = document.getElementById('reviewStatus');
+            const formData = new FormData();
+            formData.append('action', 'add_review');
+            formData.append('discogs_release_id', releaseId);
+            formData.append('rating', document.getElementById('rating').value);
+            formData.append('physical_format', document.getElementById('reviewFormat').value);
+            formData.append('review_text', document.getElementById('reviewText').value);
 
             fetch('album_actions.php', { method: 'POST', body: formData })
                 .then(r => r.json())
                 .then(res => {
-                    const msg = document.getElementById('collectionMsg');
-                    msg.style.color = res.status === 'success' ? 'green' : 'red';
-                    msg.innerText = res.message;
+                    status.style.color = res.status === 'success' ? 'green' : 'red';
+                    status.innerText = res.message || (res.status === 'success' ? 'Review posted!' : 'Could not post review.');
+                    if (res.status === 'success') {
+                        document.getElementById('reviewText').value = '';
+                        fetchReviews();
+                    }
+                })
+                .catch(() => {
+                    status.style.color = 'red';
+                    status.innerText = 'Could not post review (server error).';
                 });
         };
 
-		function checkSession() {
-			var request = new XMLHttpRequest();
-			request.open("POST", "login.php", true);
-			request.setRequestHeader("Content-Type", "application/json");
-
-			request.onreadystatechange = function () {
-				if (request.readyState === 4 && request.status === 200){
-					var res = JSON.parse(request.responseText);
-
-					if (res.status === "success") {
-
-					} else {
-						window.location.href = "login.html";
-					}
-				}
-			};
-			
-			request.send(JSON.stringify({type: "validate_session"}));
-		}
-
-		window.onload = checkSession;
+        // Session check (login.php is in the same folder)
+        function checkSession() {
+            var request = new XMLHttpRequest();
+            request.open("POST", "login.php", true);
+            request.setRequestHeader("Content-Type", "application/json");
+            request.onreadystatechange = function () {
+                if (request.readyState === 4 && request.status === 200) {
+                    try {
+                        var res = JSON.parse(request.responseText);
+                        if (res.status !== "success") window.location.href = "login.html";
+                    } catch (e) { /* ignore bad response */ }
+                }
+            };
+            request.send(JSON.stringify({ type: "validate_session" }));
+        }
+        window.onload = checkSession;
     </script>
 </body>
 </html>
