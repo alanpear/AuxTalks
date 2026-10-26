@@ -32,6 +32,7 @@
 			request.send(JSON.stringify({ type: "logout" }));
 		}
 
+		//Checks if the user is logged in
 		function checkSession() {
 			var request = new XMLHttpRequest();
 			request.open("POST", "login.php", true);
