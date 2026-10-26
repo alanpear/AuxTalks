@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title> AuxTalks - Rate Album</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="../home.html">Home</a>
+        <a href="search.html">Search</a>
+        <a href="collection.html">My Collection</a>
+    </nav>
+    
+    <div class="container">
+        <h2>Rate Album</h2>
+        <h3 id="albumheading"></h3>
+
+        <form id="rateForm">
+            <label for="rating">Score (1.0 to 5.0):</label><br>
+            <select id="rating">
+                <option value="5.0">5.0</option>
+                <option value="4.5">4.5</option>
+                <option value="4.0">4.0</option>
+                <option value="3.5">3.5</option>
+                <option value="3.0">3.0</option>
+                <option value="2.5">2.5</option>
+                <option value="2.0">2.0</option>
+                <option value="1.5">1.5</option>
+                <option value="1.0">1.0</option>
+            </select>
+
+            <label for="format">Format Owned</label><br>
+            <select id="format">
+                <option value="Vinyl">Vinyl</option>
+                <option value="CD">CD</option>
+                <option value="Cassette">Cassette</option>
+                <option value="Digital">Digital</option>
+            </select>
+
+            <button type="submit">Submit Rating</button>
+            <button type="button" id="btnCancel">Cancel</button>
+        </form>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        const params = new URLSearchParms(window.location.search);
+        const ReleaseId = params.get('id');
+        document.getElementById('albumHeading').innerText = params.get('title') || 'Album';
+
+        document.getElementById('btnCancel').onclick = () => {
+            window.location.href = 'album.html$id=${releaseId}';
+        }
+
+        document.getElementById('rateForm').onsubmit = (e) => {
+            e.preventDefault();
+            const formData = new FormData();
+            formData.append('action', 'add_review');
+            formData.append('discogs_release_id', releaseID);
+            formData.append('rating', document.getElementById('rating').value);
+            formData.append('physical_format', document.getElementById('format').value);
+            formData.append('review_text', document.getElementById('reviewText').value);
+
+            fetch('album_actions.php', {method: 'POST', body: formData})
+                .then(r => r.json())
+                .then(res => {
+                    const status = document.getElementById('status');
+                    if(res.status ==='success') {
+                        document.getElementById('reviewText').value = '';
+                        fetchReviews();
+                    }
+                });
+        };
+    </script>
+</body>
+</html>
