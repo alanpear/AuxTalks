@@ -38,7 +38,8 @@
     <script>
         const params = new URLSearchParams(window.location.search);
         const threadId = parseInt(params.get('id') || '0', 10) || 0;
-        let postsByID = {};
+        let postsById = {};
+        let replyParentId = 0;
 
         function escapeHtml(s) {
             return String(s ?? '').replace(/[&<>"']/g, c => ({
