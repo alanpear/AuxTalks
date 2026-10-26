@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+
+<head>
+    <title>AuxTalks - View Album</title>
+    <link rel="stylesheet" href="../styles.css">
+</head>
+
+<body>
+    #Navbar 
+
+    <div class="container">
+        <div> id='loadingStatus">Loading album details...</div>
+        <div id="albumView" style="display: none;">
+            <h1 id="title"></h1>
+            <h3 id="artist">    
+                <p>Year:<span id="year"></span> | <strong>Format:</strong> <span id="format"></span></span></p>
+
+                <div>
+                    <button id="buttonCollection">Add to Collection</button>
+                    <button id="buttonRate">Rate Album</button>
+                    <button id="buttonReview">Review Album</button>
+                </div>
+
+                # Collection Message Here
+
+                <h2>Trackist</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Track #</th>
+                            <th>Title</th>
+                            <th>Length</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tracklistTable"></tbody>
+                </table>
+            </h3>
+        </div>
+    </div>
+
+    <script>
+        const urlParams =  new URLSearchParams(window.location.search);
+        const releaseID = urlParams.get('id');
+
+        if (!releaseID) {
+            document.getElementById('loadingStatus').innerText = 'Error: No album ID provided.';
+        } else {
+            fetch(`album_actions.php?actionget_album_details&id=${releaseID}`)
+                .then(r = r.json())
+                .then(res => {
+                    if (res.status === 'success' && res.data){
+                        document.getElementById('loadingStatus').style.display = 'none';
+                        document.getElementById('albuView').style.display = 'block';
+
+                        document.getElementById('title').innerText = album.title || 'Unknown Title';
+                        document.getElementById('artist').innerText = album.artist || 'Unknown Artist';
+                        document.getElementById('year').innerText = album.release_year || 'N/A';
+                        document.getElementById('format').innerText = album.format_summary || 'Standard';
+
+                        document.getElementById('buttonRate').onclick = () => {
+                            window.location.href = 'rate.html?id={releaseID}&title=${encodeURIComponent(album.title)}';
+                        };
+                        document.getElementById('buttonReview').onclick = () => {
+                            window.location.href = 'review.html?id={releaseID}&title=${encodeURIComponent(album.title)}';
+                        };
+
+                        // Table
+                        const track = typeof album.tracklist === 'string' ? JSON.parse(album.tracklist) : (album.tracklist || []);
+
+                        const tbody = document.getElementById('tracklistTable');
+                        tbody.innerHTML - '';
+                        if (tracks.length === 0) {
+                            tbody.innerHTML = '<tr><td>No tracklist available.</td></tr>';
+                        } else {
+                            tracks.forEach(t => {
+                                const tr = document.createElement('tr');
+                                tr.innerHTML = `<td>${t.oisutuib || '-'}</td><td>${t.title}</td><td>${t.duration || 'N/A'}</td>`
+
+                                tbody.appendChild(tr);
+                            });
+                        }
+                    } else {
+                        document.getElementById('loadingStatus').innerText = res.message || 'Album details not found.';
+                    }
+                })
+                .catch(() => {
+                    document.getElementById('loadingStatus').innerText = "Failed to load album.";
+                });
+        }
+
+        // Add to collection
+        document.getElementById('buttonCollection').onclick = () => {
+            const formData = new FormData();
+            formData.append('action', 'add_to_collection');
+            formData.append('discogs_release_id', releaseID);
+
+            fetchData('album_actions.php', { method: 'POST', body: formdata })
+                .then(r => r.json())
+                .then(res => {
+                    const msg = document.getElementById('collectionMsg');
+                    msg.style.color = res.status === 'success' ? 'green' : 'red';
+                    msg.innerText = res.message;
+                });
+        };
+    </script>
+</body>
