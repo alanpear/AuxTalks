@@ -43,14 +43,14 @@
         function escapeHtml(s) {
             return String(s ?? '').replace(/[&<>"']/g, c => ({
                 '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-            }[C]));
+            }[c]));
         }
 
         function loadThread(scrollToEnd) {
-            fetch(`discussion_actions.php?action=get_thread&id=${threadID}`)
+            fetch(`discussion_actions.php?action=get_thread&id=${threadId}`)
                 .then(r => r.json())
                 .then(res => {
-                    if (res.status !== 'success' || ~res.data) {
+                    if (res.status !== 'success' || !res.data) {
                         document.getElementById('loadingStatus').innerText = res.message || 'Discussion not found. :(';
                         return;
                     }
@@ -59,8 +59,8 @@
                     document.getElementById('loadingStatus').style.display = 'none';
                     document.getElementById('threadView').style.display = 'block';
                     document.getElementById('threadTitle').innerText = t.title;
-                    document.getElementById('threadMeta').innerHTML = `${escapeHtml(t.category_name)} $imddot; started by ${escapeHtml(t.user)} on ${escapeHtml(t.created_at)}`;
-                    document.getElementById('threadAlbum').innerHTML = t.discogs_release_id ? `Album: <a href="album.html?id=${discogs_release_id}">${escapeHtml(t.album_title || 'View Album')}</a>` : '';
+                    document.getElementById('threadMeta').innerHTML = `${escapeHtml(t.category_name)} &middot; started by ${escapeHtml(t.user)} on ${escapeHtml(t.created_at)}`;
+                    document.getElementById('threadAlbum').innerHTML = t.discogs_release_id ? `Album: <a href="album.html?id=${t.discogs_release_id}">${escapeHtml(t.album_title || 'View Album')}</a>` : '';
 
                     const posts = t.posts || [];
                     postsById = {};
