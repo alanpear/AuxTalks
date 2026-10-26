@@ -31,12 +31,16 @@
 			request.setRequestHeader("Content-Type", "application/json");
 
 			request.onreadystatechange = function () {
+				//Success
 				if (request.readyState === 4 && request.status === 200) {
 					var res = JSON.parse(request.responseText);
 
 					if (res.status === "success") {
 						document.getElementById("welcome").innerHTML = "Welcome back, " + res.user;
-					} else {
+					} 
+					
+					//Failed
+					else {
 						window.location.href = "login.html";
 					}
 				}
@@ -53,10 +57,14 @@
 	<a>Home</a>
 	<button onclick="logout()">Logout</button>
 	<h2 id="welcome">Loading session...</h2>
-	<button type="button" href="search.html">Search Music</button>
-	<div></div>
-	<button type="button" href="profile.html">My Profile</button>
+	<div>
+		<a href="search.html">Search</a>
+		<a href="profile.html">Profile</a>
+		<a href="discussions.html">Discussions</a>
 
+		
+
+	</div>
 </body>
 
 </html>
