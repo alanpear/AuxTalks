@@ -793,9 +793,9 @@ function requestProcessor($request)
         );
     case "get_album_reviews":
         return handleGetAlbumReviews((int)($request['discogs_release_id'] ?? 0));
-  	}
     case "get_suggestion":
-        return handleGetSuggestion($username);
+        return handleGetSuggestion($username);  	
+    }  
   return array("returnCode" => '0', 'message'=>"Server received request and processed");
 }
 
