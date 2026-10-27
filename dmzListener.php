@@ -173,7 +173,7 @@ function processDMZRequest($request)
 				return ["status" => "error", "message" => "Style or genre required"];
 			}
 
-			$apiResult = callDiscogsAPI('/databse/search', $params);
+			$apiResult = callDiscogsAPI('/database/search', $params);
 			if ($apiResult['status'] === 'error') {
 				return $apiResult;
 			}
@@ -188,9 +188,10 @@ function processDMZRequest($request)
 					'release_year' => !empty($item['year']) ? (int)$item['year'] : null,
 					'format_summary' => is_array($item['format'] ?? null) ? implode(', ', $item['format']) : 'Standard',
 					'genres' => $item['genre'] ?? [],
-					'styles' => $item['style'] ?? []
+					'styles' => $item['style'] ?? []	
 				];
 			}
+			return ["status" => "success", "data" => ["results" => $similar]];
 
 		default:
 			return ["status" => "error", "message" => "Unsupported action '{$action}' on DMZ"];
