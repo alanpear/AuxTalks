@@ -3,7 +3,7 @@
 require_once('path.inc');
 require_once('get_host_info.inc');
 require_once('rabbitMQLib.inc');
-
+ 
 function doLogin($username,$password)
 {
 	// lookup username in databas
@@ -12,7 +12,7 @@ function doLogin($username,$password)
 	if($db->connect_error){
 		return ["status" => "error", "message" => "database connection failed"];
 	}
-
+ 
 	// makes a hash of the password
 	$inputHash = hash('sha256', $password);
 	
@@ -22,25 +22,25 @@ function doLogin($username,$password)
 		$db->close();
 		return ["status" => "error", "message" => "database prepare failed: " . $db->error];
 	}
-
+ 
 	$stmt->bind_param("s", $username); //add username passed through to the function to the statement
 	$stmt->execute();
 	$result = $stmt->get_result(); //returns the hash of the password
-
+ 
 	if($row = $result->fetch_assoc()){
 		if (hash_equals($row['password'], $inputHash)) { //compares the hash of the inputed password to the hash from the db
 			$sessionKey = bin2hex(random_bytes(32)); // makes a random 32 bit session key
-
+ 
 			$stmtSession = $db->prepare("INSERT INTO sessions (user, session_key, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR))"); 
 			if($stmtSession) { //checks if the session stmt was created and then excutes the session creation
 				$stmtSession->bind_param("ss", $username, $sessionKey); // bind username and session key to the query
 				$stmtSession->execute(); //executes the query
 				$stmtSession->close(); //closes out the stmt
 			}
-
+ 
 			$stmt->close(); //closes out the stmt incase the if stmt doesnt run
 			$db->close(); //closes the database
-
+ 
 			return [ //returns the info wanted
 				"status" => "success",
 				"message" => "Loggin successful!",
@@ -49,16 +49,16 @@ function doLogin($username,$password)
 			];
 		}
 	}
-
+ 
 	$stmt->close();//closes out the stmt incase the if stmt doesnt run
 	$db->close();//closes out the db incase the if stmt doesnt run
 	return ["status" => "error", "message" => "invalid username or password"];
-
+ 
     // check password
 	//return true;
     //return false if not valid
 }
-
+ 
 function doRegister($first, $last, $email, $username, $password)
 {
 	$db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks'); //connects to database
@@ -79,7 +79,7 @@ function doRegister($first, $last, $email, $username, $password)
 	if($existing = $checkResult->fetch_assoc()){ //if the user exists code will run
 		$checkStmt->close();
 		$db->close();
-
+ 
 		if ($existing['user'] === $username){ //does the username exist or is it the email
 			return["status"=>"error", "message"=>"username already exists."];
 		}else{
@@ -88,9 +88,9 @@ function doRegister($first, $last, $email, $username, $password)
 	}
 	
 	$checkStmt->close(); //closes the check statement
-
+ 
 	$hash = hash('sha256', $password); //hashes the password
-
+ 
 	$stmt = $db->prepare("INSERT INTO users (first_name, last_name, email, user, password, dateCreated) VALUES (?, ?, ?, ?, ?, NOW())"); //datebase query to create a user
 	if(!$stmt){ //was statement made successfully
 		$err=$db->error;
@@ -98,38 +98,38 @@ function doRegister($first, $last, $email, $username, $password)
 		return ["status" => "error", "message" => "Database prepare failed: " . $err];
 	}
 	$stmt->bind_param("sssss", $first, $last, $email, $username, $hash); //binds user info but uses the password hash
-
+ 
 	if ($stmt->execute()){
 		$stmt->close();
 		$db->close();
 		return["status" => "success", "message" => "Registration completed!"];
 	}
-
+ 
 	//close the statements and database if they werent previously closed
 	$stmt->close();
 	$db->close();
 	return ["status" => "error", "message" => "Username or email already exists."];
-
+ 
 }
-
+ 
 function handleSearchMusic($query, $page = 1) {
-
+ 
     $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
     if ($db->connect_error) return ["status" => "error", "message" => "Database offline"];
-
+ 
     //check local cached_releases
     $term = "%" . $query . "%"; //properly formated for discogs
     $stmt = $db->prepare("SELECT discogs_release_id, title, artist, release_year, format_summary FROM cached_releases WHERE title LIKE ? OR artist LIKE ? LIMIT 15"); //database query
     $stmt->bind_param("ss", $term, $term); 
     $stmt->execute();
     $res = $stmt->get_result();
-
+ 
     $cached = [];
     while ($row = $res->fetch_assoc()) {
         $cached[] = $row;
     }
     $stmt->close();
-
+ 
     if (count($cached) >= 3) {
         $db->close();
         return [
@@ -138,7 +138,7 @@ function handleSearchMusic($query, $page = 1) {
             "data"   => ["page" => $page, "results" => $cached]
         ];
     }
-
+ 
     
     echo " [DB] Cache miss for '$query'. Forwarding to DMZ..." . PHP_EOL;
     $dmzClient = new rabbitMQClient("testRabbitMQ.ini", "dmzServer");
@@ -146,7 +146,7 @@ function handleSearchMusic($query, $page = 1) {
         'action' => 'search_music',
         'data'   => ['query' => $query, 'page' => $page]
     ]);
-
+ 
     
     if (isset($dmzRes['status']) && $dmzRes['status'] === 'success') {
         $resultsToCache = $dmzRes['data']['results'] ?? ($dmzRes['results'] ?? []);
@@ -161,24 +161,25 @@ function handleSearchMusic($query, $page = 1) {
             $ins->close();
         }
     }
-
+ 
     $db->close();
     return $dmzRes;
 }
-
+ 
 function handleGetRelease($releaseId) {
     $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
     if ($db->connect_error) return ["status" => "error", "message" => "Database offline"];
-
+ 
     $stmt = $db->prepare("SELECT * FROM cached_releases WHERE discogs_release_id = ?");
     $stmt->bind_param("i", $releaseId);
     $stmt->execute();
     $res = $stmt->get_result();
-
+ 
     if ($row = $res->fetch_assoc()) {
         $cachedTracks = !empty($row['tracklist']) ? json_decode($row['tracklist'], true) : null;
         if (is_array($cachedTracks) && count($cachedTracks) > 0) {
             $row['genres'] = json_decode($row['genres'] ?? '[]', true) ?? [];
+            $row['styles'] = json_decode($row['styles'] ?? '[]', true) ?? [];
             $row['tracklist'] = array_values($cachedTracks);
             $stmt->close();
             $db->close();
@@ -186,29 +187,16 @@ function handleGetRelease($releaseId) {
         }
     }
     $stmt->close();
-
+ 
     echo " [DB] Cache miss for Release ID $releaseId. Forwarding to DMZ..." . PHP_EOL;
     $dmzClient = new rabbitMQClient("testRabbitMQ.ini", "dmzServer");
     $dmzRes = $dmzClient->send_request([
         'action' => 'fetch_release_details',
         'data'   => ['discogs_release_id' => $releaseId]
     ]);
-
+ 
     if (isset($dmzRes['status']) && $dmzRes['status'] === 'success') {
-        $d = $dmzRes['data'];
-        $genres = json_encode($d['genres'] ?? []);
-        $tracks = json_encode($d['tracklist'] ?? []);
-        // Also overwrite artist/format: search caches the search text as the "artist".
-        $ins = $db->prepare("INSERT INTO cached_releases (discogs_release_id, title, artist, release_year, format_summary, genres, tracklist, lowest_price, marketplace_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE artist = VALUES(artist), format_summary = VALUES(format_summary), genres = VALUES(genres), tracklist = VALUES(tracklist), lowest_price = VALUES(lowest_price)");
-        if ($ins) {
-            $ins->bind_param("ississsds", $d['discogs_release_id'], $d['title'], $d['artist'], $d['release_year'], $d['format_summary'], $genres, $tracks, $d['lowest_price'], $d['marketplace_url']);
-            if (!$ins->execute()) {
-                echo " [DB] Failed to cache release $releaseId: " . $ins->error . PHP_EOL;
-            }
-            $ins->close();
-        } else {
-            echo " [DB] Cache insert prepare failed: " . $db->error . PHP_EOL;
-        }
+        cacheReleaseDetails($db, $dmzRes['data']);
     }
     $db->close();
     return $dmzRes;
@@ -229,7 +217,27 @@ function handleGetRelease($releaseId) {
         return["status" => "error", "message" => "That album is not in your collection."]; 
     }
 }
-
+ 
+//Saves full release details (incl. genres + styles) into cached_releases
+function cacheReleaseDetails($db, $d) {
+    $genres = json_encode($d['genres'] ?? []);
+    $styles = json_encode($d['styles'] ?? []);
+    $tracks = json_encode($d['tracklist'] ?? []);
+    // Also overwrite artist/format: search caches the search text as the "artist".
+    $ins = $db->prepare("INSERT INTO cached_releases (discogs_release_id, title, artist, release_year, format_summary, genres, styles, tracklist, lowest_price, marketplace_url) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE artist = VALUES(artist), release_year = VALUES(release_year), format_summary = VALUES(format_summary), genres = VALUES(genres), styles = VALUES(styles), tracklist = VALUES(tracklist), lowest_price = VALUES(lowest_price), marketplace_url = VALUES(marketplace_url)");
+    if (!$ins) {
+        echo " [DB] Cache insert prepare failed: " . $db->error . PHP_EOL;
+        return;
+    }
+    $price = $d['lowest_price'] ?? null;
+    $marketUrl = $d['marketplace_url'] ?? null;
+    $ins->bind_param("ississssds", $d['discogs_release_id'], $d['title'], $d['artist'], $d['release_year'], $d['format_summary'], $genres, $styles, $tracks, $price, $marketUrl);
+    if (!$ins->execute()) {
+        echo " [DB] Failed to cache release " . $d['discogs_release_id'] . ": " . $ins->error . PHP_EOL;
+    }
+    $ins->close();
+}
+ 
 function suggestionList($value) {
     if (is_array($value)) return $value;
     $decoded = json_decode((string)$value, true);
@@ -420,38 +428,38 @@ function handleGetSuggestion($user) {
         ]
     ];
 }
-
+ 
 function doLogout($sessionKey){
 	if(empty($sessionKey)){
 		return["status"=>"error", "message"=>"no session key provided"];
 	}
-
+ 
 	$db = new mysqli('localhost','admin', 'AuxTalks', 'AuxTalks');
 	if($db->connect_error){
 		return["status"=>"error", "message"=>"database connection failed"];
 	}
-
+ 
 	$stmt=$db->prepare("DELETE FROM sessions WHERE session_key = ?");
 	$stmt->bind_param("s", $sessionKey);
 	$stmt->execute();
 	$stmt->close();
 	$db->close();
-
+ 
 	return["status"=>"success", "message"=>"session deleted from database"];
 }
-
+ 
 function validateSession($sessionKey){
 	$db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
 	if($db->connect_error){
 		return ["status" => "error", "message" => "database connection failed"];
 	}
-
+ 
 	//verify key exists and is not expired
 	$stmt = $db->prepare("SELECT user FROM sessions WHERE session_key = ? AND expires_at > NOW()");
 	$stmt->bind_param("s", $sessionKey);
 	$stmt->execute();
 	$result = $stmt->get_result();
-
+ 
 	if($row = $result->fetch_assoc()) {
 		$username = $row['user'];
 		$stmt->close();
@@ -462,16 +470,16 @@ function validateSession($sessionKey){
 			"user" => $username
 		];
 	}
-
+ 
 	$stmt->close();
 	$db->close();
 	return["status" => "error", "message" => "session expired or doesnt exist"];
 }
-
+ 
 function handleAddToCollection($user, $releaseId, $notes = '', $condGrade = 'VG+', $sleeveCond = 'VG+') {
     $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
     if ($db->connect_error) return ["status" => "error", "message" => "Database offline"];
-
+ 
     //check if album is already in user_collection
     $check = $db->prepare("SELECT id FROM user_collection WHERE user = ? AND discogs_release_id = ?");
     $check->bind_param("si", $user, $releaseId);
@@ -483,20 +491,20 @@ function handleAddToCollection($user, $releaseId, $notes = '', $condGrade = 'VG+
         return ["status" => "success", "message" => "Album is already in your collection."];
     }
     $check->close();
-
+ 
     $stmt = $db->prepare("INSERT INTO user_collection (user, discogs_release_id, condition_grade, sleeve_condition, notes, added_at) VALUES (?, ?, ?, ?, ?, NOW())");
     $stmt->bind_param("sisss", $user, $releaseId, $condGrade, $sleeveCond, $notes);
     $stmt->execute();
     $stmt->close();
     $db->close();
-
+ 
     return ["status" => "success", "message" => "Album added to your collection!"];
 }
-
+ 
 function handleGetUserCollection($user) {
     $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
     if ($db->connect_error) return ["status" => "error", "message" => "Database offline"];
-
+ 
     // join with cached_releases to retrieve album title, artist, and format
     $sql = "SELECT uc.id, uc.discogs_release_id, uc.condition_grade, uc.sleeve_condition, uc.notes, uc.added_at,
                    COALESCE(cr.title, 'Unknown Title') AS title,
@@ -506,7 +514,7 @@ function handleGetUserCollection($user) {
             LEFT JOIN cached_releases cr ON uc.discogs_release_id = cr.discogs_release_id
             WHERE uc.user = ?
             ORDER BY uc.added_at DESC";
-
+ 
     $stmt = $db->prepare($sql);
     $stmt->bind_param("s", $user);
     $stmt->execute();
@@ -517,33 +525,36 @@ function handleGetUserCollection($user) {
     }
     $stmt->close();
     $db->close();
-
+ 
     return ["status" => "success", "data" => $collection];
 }
-
+ 
 function handleAddReview($user, $releaseId, $rating, $reviewText = null, $itemType = 'album', $trackTitle = null, $format = 'Vinyl') {
     $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
     if ($db->connect_error) return ["status" => "error", "message" => "Database offline"];
-
-    $stmt = $db->prepare("INSERT INTO reviews (user, discogs_release_id, item_type, track_title, rating, review_text, physical_format, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
-    $stmt->bind_param("sissdss", $user, $releaseId, $itemType, $trackTitle, $rating, $reviewText, $format);
-    
-    if ($stmt->execute()) {
+ 
+    //must match the options in album.html and the reviews.physical_format column
+    $allowedFormats = ['Vinyl', 'CD', 'Cassette', 'Digital'];
+    if (!in_array($format, $allowedFormats, true)) $format = 'Vinyl';
+ 
+    try {
+        $stmt = $db->prepare("INSERT INTO reviews (user, discogs_release_id, item_type, track_title, rating, review_text, physical_format, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())");
+        $stmt->bind_param("sissdss", $user, $releaseId, $itemType, $trackTitle, $rating, $reviewText, $format);
+        $stmt->execute();
         $stmt->close();
         $db->close();
         return ["status" => "success", "message" => "Feedback saved successfully!"];
-    } else {
-        $err = $db->error;
-        $stmt->close();
+    } catch (mysqli_sql_exception $e) {
         $db->close();
-        return ["status" => "error", "message" => "Failed to save: " . $err];
+        echo " [DB] Failed to save review: " . $e->getMessage() . PHP_EOL;
+        return ["status" => "error", "message" => "Failed to save: " . $e->getMessage()];
     }
 }
-
+ 
 function handleGetAlbumReviews($releaseId) {
     $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
     if ($db->connect_error) return ["status" => "error", "message" => "Database offline"];
-
+ 
     $stmt = $db->prepare("SELECT user, rating, review_text, physical_format, created_at FROM reviews WHERE discogs_release_id = ? ORDER BY created_at DESC");
     $stmt->bind_param("i", $releaseId);
     $stmt->execute();
@@ -554,10 +565,10 @@ function handleGetAlbumReviews($releaseId) {
     }
     $stmt->close();
     $db->close();
-
+ 
     return ["status" => "success", "data" => $reviews];
 }
-
+ 
 function handleGetForumCategories() {
     $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
     if ($db->connect_error) return ["status" => "error", "message" => "Database offline"];
@@ -713,9 +724,9 @@ function handleAddPost($user, $threadId, $body, $parentPostId = 0) {
         return ["status" => "error", "message" => "Failed to post reply: " . $err];
     }
 }
-
-
-
+ 
+ 
+ 
 function requestProcessor($request)
 {
   echo "received request".PHP_EOL;
@@ -724,10 +735,11 @@ function requestProcessor($request)
   {
     return "ERROR: unsupported message type";
   }
-
+ 
   //'uname', 'user', or 'username' dynamically
   $username = $request['uname'] ?? ($request['user'] ?? ($request['username'] ?? ''));
-
+ 
+  try {
   switch ($request['type'])
   {
     case "login":
@@ -794,14 +806,19 @@ function requestProcessor($request)
     case "get_album_reviews":
         return handleGetAlbumReviews((int)($request['discogs_release_id'] ?? 0));
     case "get_suggestion":
-        return handleGetSuggestion($username);  	
-    }  
+        return handleGetSuggestion($username);
+    }
+  } catch (Throwable $e) {
+    echo " [DB] Error handling '" . $request['type'] . "': " . $e->getMessage() . PHP_EOL;
+    return ["status" => "error", "message" => "Server error: " . $e->getMessage()];
+  }
   return array("returnCode" => '0', 'message'=>"Server received request and processed");
 }
-
+ 
 $server = new rabbitMQServer("testRabbitMQ.ini","testServer");
 echo "testRabbitMQServer BEGIN".PHP_EOL;
 $server->process_requests('requestProcessor');
 echo "testRabbitMQServer END".PHP_EOL;
 exit();
 ?>
+ 
