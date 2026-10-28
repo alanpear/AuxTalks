@@ -448,6 +448,7 @@ function doLogout($sessionKey){
 	return["status"=>"success", "message"=>"session deleted from database"];
 }
  
+
 function validateSession($sessionKey){
 	$db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
 	if($db->connect_error){
@@ -475,7 +476,8 @@ function validateSession($sessionKey){
 	$db->close();
 	return["status" => "error", "message" => "session expired or doesnt exist"];
 }
- 
+
+//adds the album to the users collection
 function handleAddToCollection($user, $releaseId, $notes = '', $condGrade = 'VG+', $sleeveCond = 'VG+') {
     $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
     if ($db->connect_error) return ["status" => "error", "message" => "Database offline"];
@@ -501,6 +503,7 @@ function handleAddToCollection($user, $releaseId, $notes = '', $condGrade = 'VG+
     return ["status" => "success", "message" => "Album added to your collection!"];
 }
  
+//returns all the albums in a users collection
 function handleGetUserCollection($user) {
     $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
     if ($db->connect_error) return ["status" => "error", "message" => "Database offline"];
@@ -529,6 +532,7 @@ function handleGetUserCollection($user) {
     return ["status" => "success", "data" => $collection];
 }
  
+//adds reviews to an album
 function handleAddReview($user, $releaseId, $rating, $reviewText = null, $itemType = 'album', $trackTitle = null, $format = 'Vinyl') {
     $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
     if ($db->connect_error) return ["status" => "error", "message" => "Database offline"];
@@ -551,7 +555,7 @@ function handleAddReview($user, $releaseId, $rating, $reviewText = null, $itemTy
     }
 }
  
-
+//displays all the album reviews
 function handleGetAlbumReviews($releaseId) {
     $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
     if ($db->connect_error) return ["status" => "error", "message" => "Database offline"];
