@@ -49,8 +49,6 @@
 			request.send(JSON.stringify({ type: "validate_session" }));
 		}
 
-		window.onload = checkSession;
-
 		//Escapes text before putting it in the page
 		function escapeHtml(value) {
 			var div = document.createElement("div");
@@ -106,6 +104,10 @@
 			};
 
 			request.send();
+		}
+		window.onload = function () {
+			checkSession();
+			loadSuggestion();
 		}
 	</script>
 </head>
