@@ -726,7 +726,7 @@ function handleAddPost($user, $threadId, $body, $parentPostId = 0) {
 }
  
  
- 
+ //actually handles what gets sent from the other machines and calls the corresponding function
 function requestProcessor($request)
 {
   echo "received request".PHP_EOL;
