@@ -551,6 +551,7 @@ function handleAddReview($user, $releaseId, $rating, $reviewText = null, $itemTy
     }
 }
  
+
 function handleGetAlbumReviews($releaseId) {
     $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
     if ($db->connect_error) return ["status" => "error", "message" => "Database offline"];
@@ -569,6 +570,7 @@ function handleGetAlbumReviews($releaseId) {
     return ["status" => "success", "data" => $reviews];
 }
  
+//gets categories
 function handleGetForumCategories() {
     $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
     if ($db->connect_error) return ["status" => "error", "message" => "Database offline"];
@@ -581,6 +583,7 @@ function handleGetForumCategories() {
     return ["status" => "success", "data" => $cats];
 }
  
+//finds all the thread categories
 function handleGetThreads($categoryId = 0) {
     $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
     if ($db->connect_error) return ["status" => "error", "message" => "Database offline"];
@@ -609,6 +612,7 @@ function handleGetThreads($categoryId = 0) {
     return ["status" => "success", "data" => $threads];
 }
  
+//creates a new thread
 function handleCreateThread($user, $categoryId, $title, $body, $releaseId = 0) {
     $title = trim((string)$title);
     $body  = trim((string)$body);
@@ -652,6 +656,7 @@ function handleCreateThread($user, $categoryId, $title, $body, $releaseId = 0) {
     }
 }
  
+// gets all the threads
 function handleGetThread($threadId) {
     $db = new mysqli('localhost', 'admin', 'AuxTalks', 'AuxTalks');
     if ($db->connect_error) return ["status" => "error", "message" => "Database offline"];
@@ -685,7 +690,8 @@ function handleGetThread($threadId) {
     $thread['posts'] = $posts;
     return ["status" => "success", "data" => $thread];
 }
- 
+
+//adds a post for threads
 function handleAddPost($user, $threadId, $body, $parentPostId = 0) {
     $body = trim((string)$body);
     if (empty($user))  return ["status" => "error", "message" => "You must be logged in to reply."];
