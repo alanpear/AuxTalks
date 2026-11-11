@@ -9,8 +9,6 @@ define('DISCOGS_KEY', $ini['discogs']['CONSUMER_KEY'] ?? '');
 define('DISCOGS_SECRET', $ini['discogs']['CONSUMER_SECRET'] ?? '');
 define('DISCOGS_USER_AGENT', $ini['discogs']['USER_AGENT'] ?? 'AuxTalksApp/1.0');
 
-echo "[DMZ INIT] Consumer Key: " . (DISCOGS_KEY ? substr(DISCOGS_KEY, 0, 4) . '****' : '[EMPTY/MISSING]') . PHP_EOL;
-echo "[DMZ INIT] User Agent: " . DISCOGS_USER_AGENT . PHP_EOL;
 
 function callDiscogsAPI($endpoint, $params = [])
 {
